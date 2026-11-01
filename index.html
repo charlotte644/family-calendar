@@ -49,6 +49,8 @@
   .side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; background: var(--card); border: 1px solid var(--line); border-radius: 18px; }
   .side-in { padding: 14px 14px 16px; }
   .side-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .side-head .row { gap: 6px; flex-wrap: nowrap; }
+  .side-in.folded { padding: 10px 14px; }
   .side h3 { font-family: Fraunces, Georgia, serif; font-weight: 600; margin: 0; font-size: 1.2rem; }
   .side-sub { display: flex; justify-content: space-between; align-items: baseline; } .side-sub h4 { margin-bottom: 0; }
   .side h4 { margin: 18px 0 8px; font-size: 0.8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
@@ -343,7 +345,11 @@
   }
   function ideasPanel() {
     const list = V.ideas || [], going = list.filter(i => i.going).sort((a, b) => a.going.date < b.going.date ? -1 : 1);
-    return '<div class="side-in"><div class="side-head"><h3>Things to do</h3><button class="small primary" data-new-idea="1">＋ Add</button></div>' +
+    const head = '<div class="side-head"><h3>Things to do <span class="sub">(' + todoList().length + ')</span></h3><div class="row">' +
+      (HIDE_IDEAS ? '' : '<button class="small primary" data-new-idea="1">＋ Add</button>') +
+      '<button class="small" data-hideideas="1" aria-expanded="' + !HIDE_IDEAS + '">' + (HIDE_IDEAS ? 'Show ▾' : 'Hide ▴') + '</button></div></div>';
+    if (HIDE_IDEAS) return '<div class="side-in folded">' + head + '</div>';
+    return '<div class="side-in">' + head +
       '<p class="sub" style="margin-top:0">Only you can see this list.</p>' +
       '<div class="filters">' + [['all', 'All'], ['dog', '🐶 Dog friendly'], ['free', 'Free'], ['dated', 'Has a date']].map(f => '<button class="small' + (IDEA_FILTER === f[0] ? ' on' : '') + '" data-ifilter="' + f[0] + '">' + f[1] + '</button>').join('') + '</div>' +
       (going.length ? '<div class="side-sub"><h4>We’re going (' + going.length + ')</h4><button class="link small" data-hidegoing="1">' + (HIDE_GOING ? 'Show' : 'Hide') + '</button></div>' + (HIDE_GOING ? '' : going.map(ideaCard).join('')) : '') +
@@ -351,6 +357,9 @@
   }
   let IDEA_FILTER = 'all', HIDE_GOING = false;
   try { HIDE_GOING = localStorage.getItem('famcal_hidegoing') === '1'; } catch (e) { /* default */ }
+  // The whole panel folds to one line. On a phone it starts folded so the calendar comes first; the choice is remembered per device.
+  let HIDE_IDEAS = window.innerWidth < 960;
+  try { const s = localStorage.getItem('famcal_hideideas'); if (s !== null) HIDE_IDEAS = s === '1'; } catch (e) { /* default */ }
   // Ideas grouped by month for the next 12 months (from a set date, or the first month named in "When"), then "Any time".
   const MON_RE = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/i;
   function ideaMonth(i) {
@@ -654,6 +663,7 @@
     if (ds.need) return needDialog();
     if (ds.needdone) { t.disabled = true; try { await api('doneNeed', KEY, ds.needdone); await load(FROM); } catch (e) { toast(e.message); } return; }
     if (ds.ifilter) { IDEA_FILTER = ds.ifilter; render(); return; }
+    if (ds.hideideas) { HIDE_IDEAS = !HIDE_IDEAS; try { localStorage.setItem('famcal_hideideas', HIDE_IDEAS ? '1' : '0'); } catch (e) { } render(); return; }
     if (ds.hidegoing) { HIDE_GOING = !HIDE_GOING; try { localStorage.setItem('famcal_hidegoing', HIDE_GOING ? '1' : '0'); } catch (e) { } render(); return; }
     if (ds.open) {
       const a = ds.open.split('|'); t.disabled = true;
