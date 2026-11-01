@@ -57,7 +57,8 @@
     getId() { return this.id; }, getTitle() { return this.title; }, getStartTime() { return this.start; }, getEndTime() { return this.end; },
     isAllDayEvent() { return this.allDay; }, getAllDayStartDate() { return this.start; }, getAllDayEndDate() { return this.end; },
     getMyStatus() { return 'YES'; }, getLocation() { return this.loc; },
-    setTag(k, v) { this.tags[k] = v; }, getTag(k) { return this.tags[k] || null; }, setColor() {},
+    setTag(k, v) { this.tags[k] = v; }, getTag(k) { return this.tags[k] || null; }, deleteTag(k) { delete this.tags[k]; }, setColor() {},
+    setTime(s, e) { this.start = s; this.end = e; }, setAllDayDate(d) { this.start = d; this.end = new Date(d.getTime() + 86400000); this.allDay = true; }, setLocation(l) { this.loc = l; },
     deleteEvent() { const i = this.cal.events.indexOf(this); if (i >= 0) this.cal.events.splice(i, 1); }
   };
   function Cal(id, name) { this.id = id; this.name = name; this.events = []; }
@@ -113,6 +114,8 @@
       add('primary', dateAdd_(m, 2), '18:00', '20:00', 'Heres Law seminar');   // ignored: contains "seminar"
       add('primary', dateAdd_(m, 5), '10:00', '12:00', 'Swimming with Sam');
     }
+    add('primary', dateAdd_(mon, 3), '17:00', '19:00', 'Dinner at JRC Buffet');
+    cals.primary.createAllDayEvent('Josh\'s stag', dt_(dateAdd_(mon, 4), '00:00'), {});
     const plan = (by, d, s, e, title, place, people) => {
       const p = { id: nextId_('P'), created: '', created_by: by, kind: 'plan', date: d, start: s, end: e, title: title, place: place, notes: '', people: people, status: 'on', event_id: '', updated: '' };
       p.event_id = makeEvent_(p); appendObj_('Plans', p);

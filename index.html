@@ -11,7 +11,7 @@
   :root {
     --bg: #f7f3ec; --card: #ffffff; --ink: #2b2925; --muted: #6f6a61; --line: #e6dfd3;
     --brand: #2f5d50; --brand-soft: #e3eee9;
-    --busy: #d8d2c7; --plan: #3f8a6f; --sam: #d9902b; --sam-soft: #fbf0de; --dog: #7d64b3; --dog-soft: #efeaf8;
+    --busy: #d8d2c7; --plan: #3f8a6f; --free: #e4f1ea; --sam: #d9902b; --sam-soft: #fbf0de; --dog: #7d64b3; --dog-soft: #efeaf8;
     --danger: #a8402f; --radius: 14px;
   }
   * { box-sizing: border-box; }
@@ -36,32 +36,65 @@
   .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .week { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 18px 0 10px; }
   .week strong { font-family: Fraunces, Georgia, serif; font-size: 1.15rem; text-align: center; }
-  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.85rem; color: var(--muted); margin-bottom: 12px; }
-  .sw { display: inline-block; width: 14px; height: 10px; border-radius: 3px; vertical-align: middle; margin-right: 5px; }
-  .day { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px 12px; margin-bottom: 12px; }
+  .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; font-size: 0.82rem; color: var(--muted); margin: 4px 0 18px; }
+  .sw { display: inline-block; width: 16px; height: 10px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
+  .sw.free { background: var(--free); } .sw.busy { background: var(--busy); } .sw.plan { background: var(--plan); }
+  /* Week at a glance */
+  .strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin: 4px 0 10px; }
+  .tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 2px 8px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); color: var(--ink); text-decoration: none; min-width: 0; }
+  .tile:hover { border-color: var(--brand); }
+  .tile .wd { font-size: 0.68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .tile .num { font-family: Fraunces, Georgia, serif; font-size: 1.35rem; line-height: 1.1; }
+  .tile .st { font-size: 0.66rem; font-weight: 700; border-radius: 999px; padding: 1px 6px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .tile.s-free .st { background: var(--free); color: var(--brand); }
+  .tile.s-part .st { background: #fdf1d8; color: #8a5a12; }
+  .tile.s-busy .st { background: #eee9e1; color: var(--muted); }
+  .tile .ic { font-size: 0.78rem; height: 1.1em; line-height: 1.1; letter-spacing: 1px; }
+  .tile.today { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
+  .tile .sm, .m-today { display: none; }
+  .tile.past { opacity: .55; }
+  /* One day */
+  .day { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px 16px 12px; margin-bottom: 12px; scroll-margin-top: 12px; }
   .day.today { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand); }
   .day.past { opacity: 0.6; }
-  .dayhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-  .dayhead h2 { font-size: 1.05rem; margin: 0; }
-  .pill { font-size: 0.82rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); }
+  .date { text-align: center; border-radius: 14px; background: var(--bg); padding: 8px 0 7px; align-self: start; }
+  .date .wd { display: block; font-size: 0.7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .date .num { display: block; font-family: Fraunces, Georgia, serif; font-size: 1.75rem; line-height: 1.05; }
+  .date .mo { display: block; font-size: 0.7rem; color: var(--muted); }
+  .day.today .date { background: var(--brand); color: #fff; } .day.today .date .wd, .day.today .date .mo { color: #d5e6df; }
+  .dayhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .dayhead h2 { font-size: 1rem; margin: 0; font-weight: 700; }
+  .pill { font-size: 0.8rem; font-weight: 700; padding: 3px 11px; border-radius: 999px; background: var(--free); color: var(--brand); }
+  .pill.part { background: #fdf1d8; color: #8a5a12; }
   .pill.full { background: #eee9e1; color: var(--muted); }
-  .bar { position: relative; height: 22px; background: #fff; border: 1px solid var(--line); border-radius: 7px; margin: 10px 0 2px; overflow: hidden; }
+  .bar { position: relative; height: 14px; background: var(--free); border-radius: 999px; margin: 12px 0 3px; overflow: hidden; }
   .bar span { position: absolute; top: 0; bottom: 0; }
-  .bar .b { background: repeating-linear-gradient(-45deg, var(--busy), var(--busy) 5px, #cfc8bc 5px, #cfc8bc 10px); }
+  .bar .b { background: var(--busy); }
   .bar .p { background: var(--plan); }
-  .ticks { position: relative; height: 16px; font-size: 0.72rem; color: var(--muted); }
+  .ticks { position: relative; height: 15px; font-size: 0.68rem; color: var(--muted); margin-bottom: 4px; }
   .ticks span { position: absolute; transform: translateX(-50%); }
-  .lines { margin-top: 8px; display: grid; gap: 6px; }
-  .line { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; font-size: 0.95rem; }
-  .tag { font-size: 0.78rem; font-weight: 700; border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
-  .tag.sam { background: var(--sam-soft); color: #8a5a12; }
-  .tag.dog { background: var(--dog-soft); color: #54408a; }
-  .tag.plan { background: var(--brand-soft); color: var(--brand); }
-  .tag.busy { background: #eee9e1; color: var(--muted); }
-  .line .what { flex: 1; min-width: 180px; }
-  .line .acts { display: flex; gap: 2px; flex-wrap: wrap; }
-  .sub { color: var(--muted); font-size: 0.86rem; }
-  .dayacts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .lines { display: grid; gap: 2px; }
+  .line { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid #f1ece4; font-size: 0.93rem; }
+  .line:first-child { border-top: 0; }
+  .ico { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 0.95rem; }
+  .ico.sam { background: var(--sam-soft); } .ico.dog { background: var(--dog-soft); } .ico.plan { background: var(--brand-soft); } .ico.busy { background: #f1ece4; }
+  .line .what { min-width: 0; }
+  .line .what strong { font-weight: 700; }
+  .line .when { color: var(--muted); font-size: 0.84rem; font-variant-numeric: tabular-nums; }
+  .line .acts { display: flex; gap: 0; flex-wrap: wrap; justify-content: flex-end; }
+  .sub { color: var(--muted); font-size: 0.84rem; }
+  .dayacts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; padding-top: 10px; border-top: 1px solid #f1ece4; }
+  .dayacts button { background: var(--bg); border-color: transparent; font-size: 0.82rem; padding: 5px 11px; }
+  .dayacts button:hover { border-color: var(--brand); }
+  @media (max-width: 520px) {
+    .day { grid-template-columns: 1fr; gap: 6px; padding: 14px 14px 10px; }
+    .date { display: none; }
+    .m-today { display: inline; color: var(--brand); }
+    .tile .lg { display: none; } .tile .sm { display: inline; }
+    .line { grid-template-columns: 28px minmax(0, 1fr); } .line .acts { grid-column: 2; justify-content: flex-start; }
+    .ico { width: 28px; height: 28px; }
+    .tile .num { font-size: 1.1rem; } .tile .st { font-size: 0.6rem; padding: 1px 4px; }
+  }
   .msg { padding: 12px 14px; border-radius: 10px; margin: 10px 0; background: #fff4e5; border: 1px solid #f0d3a6; }
   .msg.err { background: #fdecea; border-color: #f2c1b9; color: var(--danger); }
   .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 999px; font-weight: 600; z-index: 50; max-width: calc(100% - 32px); }
@@ -139,7 +172,7 @@
   function freeWindows(day, V) {
     let free = [[V.dayStart, V.dayEnd]];
     const cut = (a, b) => { const out = []; free.forEach(f => { if (b <= f[0] || a >= f[1]) out.push(f); else { if (a > f[0]) out.push([f[0], a]); if (b < f[1]) out.push([b, f[1]]); } }); free = out; };
-    day.busy.forEach(b => cut(b.s, b.e)); day.plans.forEach(p => cut(p.s, p.e));
+    day.busy.forEach(b => { if (!b.n) cut(b.s, b.e); }); day.plans.forEach(p => cut(p.s, p.e));
     return free.filter(f => f[1] - f[0] >= 30);
   }
   function freeText(day, V) {
@@ -183,10 +216,29 @@
   function renderCalendar() {
     let h = subscribePanel();
     h += '<div class="week"><button data-go="back" ' + (V.canBack ? '' : 'disabled') + ' aria-label="Previous week">‹ Back</button><strong>' + esc(weekTitle(V.from, V.to)) + '</strong><button data-go="next" ' + (V.canForward ? '' : 'disabled') + ' aria-label="Next week">Next ›</button></div>';
-    h += '<div class="row" style="justify-content:center;margin:-4px 0 12px"><button class="small" data-go="today">Back to today</button></div>';
-    h += '<div class="legend"><span><i class="sw" style="background:#fff;border:1px solid var(--line)"></i>Free</span><span><i class="sw" style="background:var(--busy)"></i>' + (boss() ? 'Busy' : 'We’re busy') + '</span><span><i class="sw" style="background:var(--plan)"></i>' + (boss() ? 'Plans with family' : 'Plans with you') + '</span></div>';
+    h += '<div class="strip">' + V.days.map(tile).join('') + '</div>';
+    h += '<div class="legend"><span><i class="sw free"></i>Free</span><span><i class="sw busy"></i>' + (boss() ? 'Busy' : 'We’re busy') + '</span><span><i class="sw plan"></i>' + (boss() ? 'Plans with family' : 'Plans with you') + '</span>' +
+      (V.from !== V.today ? '<button class="link small" data-go="today">Back to today</button>' : '') + '</div>';
     V.days.forEach(d => { h += dayCard(d); });
     $('#main').innerHTML = h;
+  }
+
+  // ---------- week at a glance ----------
+  const WD3 = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dParts = ds => { const p = ds.split('-').map(Number), dt = new Date(Date.UTC(p[0], p[1] - 1, p[2])); return { wd: WD3[dt.getUTCDay()], num: p[2], mo: MONTHS[p[1] - 1].slice(0, 3) }; };
+  function status(d) {
+    const f = freeWindows(d, V), all = f.length === 1 && f[0][0] === V.dayStart && f[0][1] === V.dayEnd;
+    if (!f.length) return { cls: 'busy', short: 'Busy', tiny: 'Busy' };
+    if (all) return { cls: 'free', short: 'Free', tiny: 'Free' };
+    if (f.length === 1 && f[0][1] === V.dayEnd) return { cls: 'part', short: 'From ' + nice(f[0][0]), tiny: nice(f[0][0]) + '+' };
+    if (f.length === 1 && f[0][0] === V.dayStart) return { cls: 'part', short: 'Till ' + nice(f[0][1]), tiny: '–' + nice(f[0][1]) };
+    return { cls: 'part', short: 'Some free', tiny: 'Some' };
+  }
+  function tile(d) {
+    const p = dParts(d.date), st = status(d);
+    const away = k => d[k].length ? (k === 'sam' ? '🧒' : '🐶') : '';
+    return '<a class="tile s-' + st.cls + (d.date === V.today ? ' today' : '') + (d.past ? ' past' : '') + '" href="#d-' + d.date + '" title="' + esc(d.label) + '">' +
+      '<span class="wd">' + p.wd + '</span><span class="num">' + p.num + '</span><span class="st"><span class="lg">' + esc(st.short) + '</span><span class="sm">' + esc(st.tiny) + '</span></span><span class="ic">' + away('sam') + away('nixon') + (d.plans.length ? '📅' : '') + '</span></a>';
   }
 
   function subscribePanel() {
@@ -206,54 +258,65 @@
   function bar(d) {
     const span = V.dayEnd - V.dayStart, pct = m => Math.max(0, Math.min(100, (m - V.dayStart) / span * 100));
     let h = '<div class="bar" aria-hidden="true">';
-    d.busy.forEach(b => { if (b.e > V.dayStart && b.s < V.dayEnd) h += '<span class="b" style="left:' + pct(b.s) + '%;width:' + (pct(b.e) - pct(b.s)) + '%"></span>'; });
+    d.busy.forEach(b => { if (!b.n && b.e > V.dayStart && b.s < V.dayEnd) h += '<span class="b" style="left:' + pct(b.s) + '%;width:' + (pct(b.e) - pct(b.s)) + '%"></span>'; });
     d.plans.forEach(p => { if (p.e > V.dayStart && p.s < V.dayEnd) h += '<span class="p" style="left:' + pct(p.s) + '%;width:' + (pct(p.e) - pct(p.s)) + '%"></span>'; });
     h += '</div><div class="ticks" aria-hidden="true">';
     for (let m = Math.ceil(V.dayStart / 180) * 180; m <= V.dayEnd; m += 180) h += '<span style="left:' + pct(m) + '%">' + nice(m) + '</span>';
     return h + '</div>';
   }
 
+  const line = (ico, cls, what, acts) => '<div class="line"><span class="ico ' + cls + '" aria-hidden="true">' + ico + '</span><div class="what">' + what + '</div>' + (acts ? '<span class="acts">' + acts + '</span>' : '<span></span>') + '</div>';
+
   function careLine(kind, d) {
-    const list = d[kind], name = kind === 'sam' ? V.child : V.dog, cls = kind === 'sam' ? 'sam' : 'dog';
-    if (!list.length) return '<div class="line"><span class="tag ' + cls + '">' + esc(name) + '</span><span class="what">With us</span></div>';
+    const list = d[kind], name = kind === 'sam' ? V.child : V.dog, cls = kind === 'sam' ? 'sam' : 'dog', ico = kind === 'sam' ? '🧒' : '🐶';
+    if (!list.length) return line(ico, cls, '<strong>' + esc(name) + '</strong> <span class="sub">is with us</span>', '');
     return list.map(c => {
       const when = c.start ? range(c.s, c.e) : 'all day';
-      const who = c.mine ? 'with you' : 'with ' + c.name;
+      const who = c.mine ? 'you' : c.name;
       let acts = '';
       if (c.canEdit && !d.past) {
-        acts = c.pattern ? '<button class="link small danger" data-drop="' + kind + '|' + d.date + '|' + esc(c.person) + '|">Can’t have ' + childPron + ' this time</button>'
-          : '<button class="link small danger" data-drop="' + kind + '|' + d.date + '|' + esc(c.person) + '|' + esc(c.id) + '">Can’t have ' + childPron + ' after all</button>';
+        acts = c.pattern ? '<button class="link small danger" data-drop="' + kind + '|' + d.date + '|' + esc(c.person) + '|">Can’t this time</button>'
+          : '<button class="link small danger" data-drop="' + kind + '|' + d.date + '|' + esc(c.person) + '|' + esc(c.id) + '">Can’t after all</button>';
       }
-      return '<div class="line"><span class="tag ' + cls + '">' + esc(name) + '</span><span class="what">' + esc(who) + ', ' + when + (c.pattern ? ' <span class="sub">(usual day)</span>' : '') + (c.notes ? '<br><span class="sub">' + esc(c.notes) + '</span>' : '') + '</span><span class="acts">' + acts + '</span></div>';
+      return line(ico, cls, '<strong>' + esc(name) + '</strong> is with <strong>' + esc(who) + '</strong> <span class="when">· ' + when + (c.pattern ? ', usual day' : '') + '</span>' +
+        (c.notes ? '<div class="sub">' + esc(c.notes) + '</div>' : ''), acts);
     }).join('');
   }
 
   function dayCard(d) {
-    const ft = freeText(d, V), isToday = d.date === V.today;
-    let h = '<article class="day' + (isToday ? ' today' : '') + (d.past ? ' past' : '') + '">';
-    h += '<div class="dayhead"><h2>' + (isToday ? 'Today · ' : '') + esc(d.label) + '</h2><span class="pill' + (ft.full ? ' full' : '') + '">' + esc(ft.text) + '</span></div>';
+    const ft = freeText(d, V), st = status(d), isToday = d.date === V.today, p = dParts(d.date);
+    let h = '<article class="day' + (isToday ? ' today' : '') + (d.past ? ' past' : '') + '" id="d-' + d.date + '">';
+    h += '<div class="date"><span class="wd">' + (isToday ? 'Today' : p.wd) + '</span><span class="num">' + p.num + '</span><span class="mo">' + p.mo + '</span></div><div>';
+    h += '<div class="dayhead"><h2>' + (isToday ? '<span class="m-today">Today · </span>' : '') + esc(d.label) + '</h2><span class="pill' + (st.cls === 'busy' ? ' full' : st.cls === 'part' ? ' part' : '') + '">' + esc(ft.text) + '</span></div>';
     h += bar(d) + '<div class="lines">';
-    h += careLine('sam', d) + careLine('nixon', d);
     d.plans.forEach(p => {
       const when = p.start ? range(p.s, p.e) : 'All day';
       const others = p.withNames.filter((n, i) => p.people[i] !== V.me.id);
-      const withTxt = boss() ? (p.withNames.length ? 'with ' + p.withNames.join(', ') : 'just us') : (others.length ? 'also with ' + others.join(', ') : '');
-      let acts = '<button class="link small" data-addcal="' + esc(p.id) + '">Add to my calendar</button>';
+      const withTxt = boss() ? (p.withNames.length ? 'with ' + p.withNames.join(', ') : '') : (others.length ? 'also with ' + others.join(', ') : '');
+      let acts = '<button class="link small" data-addcal="' + esc(p.id) + '">Add to calendar</button>';
       if (p.canEdit && !d.past) acts += '<button class="link small" data-move="' + esc(p.id) + '">Change</button><button class="link small danger" data-cancel="' + esc(p.id) + '">Cancel</button>';
-      h += '<div class="line"><span class="tag plan">' + esc(when) + '</span><span class="what"><strong>' + esc(p.title) + '</strong>' +
-        (p.place ? ' · <a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.place) + '" target="_blank" rel="noopener">' + esc(p.place) + '</a>' : '') +
-        (withTxt ? '<br><span class="sub">' + esc(withTxt) + '</span>' : '') + (p.notes ? '<br><span class="sub">' + esc(p.notes) + '</span>' : '') + '</span><span class="acts">' + acts + '</span></div>';
+      h += line('📅', 'plan', '<strong>' + esc(p.title) + '</strong> <span class="when">· ' + esc(when) + '</span>' +
+        ((p.place || withTxt) ? '<div class="sub">' + [p.place ? '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.place) + '" target="_blank" rel="noopener">' + esc(p.place) + '</a>' : '', esc(withTxt)].filter(Boolean).join(' · ') + '</div>' : '') +
+        (p.notes ? '<div class="sub">' + esc(p.notes) + '</div>' : ''), acts);
     });
-    if (boss()) d.busy.forEach(b => { h += '<div class="line"><span class="tag busy">' + esc(b.s <= 0 && b.e >= 1440 ? 'All day' : range(b.s, b.e)) + '</span><span class="what sub">' + esc(b.t || 'Busy') + '</span></div>'; });
-    (d.work || []).forEach(w => { h += '<div class="line"><span class="tag busy">Day off</span><span class="what sub">' + esc(w.label) + '</span></div>'; });
+    h += careLine('sam', d) + careLine('nixon', d);
+    if (boss()) {
+      const work = d.busy.filter(b => b.w), other = d.busy.filter(b => !b.w && !b.n), notes = d.busy.filter(b => b.n);
+      if (work.length) h += line('💼', 'busy', '<span class="sub">' + work.map(b => esc(b.t) + ' ' + range(b.s, b.e)).join(' · ') + '</span>', '');
+      (d.work || []).forEach(w => { h += line('🌴', 'busy', '<span class="sub">' + esc(w.label) + '</span>', ''); });
+      const whenB = b => b.s <= 0 && b.e >= 1440 ? 'all day' : range(b.s, b.e);
+      other.forEach(b => { h += line('•', 'busy', '<span class="sub">' + esc(b.t || 'Busy') + ' <span class="when">· ' + esc(whenB(b)) + '</span></span>',
+        b.id && !d.past ? '<button class="link small" data-share="' + esc(b.id) + '" data-title="' + esc(b.t) + '">Share with family</button>' : ''); });
+      notes.forEach(b => { h += line('🗒', 'busy', '<span class="sub">' + esc(b.t) + ' <span class="when">· ' + esc(whenB(b)) + ', note only (not busy)</span></span>', ''); });
+    }
     h += '</div>';
     if (!d.past || boss()) {
-      h += '<div class="dayacts"><button class="small" data-plan="' + d.date + '">+ Plan something' + (boss() ? '' : ' with us') + '</button>' +
-        '<button class="small" data-have="sam|' + d.date + '">' + (boss() ? 'Someone’s having ' + esc(V.child) : 'I’ll have ' + esc(V.child)) + '</button>' +
-        '<button class="small" data-have="nixon|' + d.date + '">' + (boss() ? 'Someone’s having ' + esc(V.dog) : 'I’ll have ' + esc(V.dog)) + '</button>' +
-        ((V.workers || []).length ? '<button class="small" data-work="' + d.date + '">' + (V.me.role === 'admin' ? 'Work: leave / overtime' : 'My work: overtime / off') + '</button>' : '') + '</div>';
+      h += '<div class="dayacts"><button data-plan="' + d.date + '">＋ ' + (boss() ? 'Plan' : 'Plan something with us') + '</button>' +
+        '<button data-have="sam|' + d.date + '">🧒 ' + (boss() ? 'Who has ' + esc(V.child) : 'I’ll have ' + esc(V.child)) + '</button>' +
+        '<button data-have="nixon|' + d.date + '">🐶 ' + (boss() ? 'Who has ' + esc(V.dog) : 'I’ll have ' + esc(V.dog)) + '</button>' +
+        ((V.workers || []).length ? '<button data-work="' + d.date + '">💼 ' + (V.me.role === 'admin' ? 'Leave / overtime' : 'Overtime / off') + '</button>' : '') + '</div>';
     }
-    return h + '</article>';
+    return h + '</div></article>';
   }
 
   // ---------- dialogs ----------
@@ -388,6 +451,12 @@
     }
     if (ds.have) { const a = ds.have.split('|'); return haveDialog(a[0], a[1]); }
     if (ds.work) return workDialog(ds.work);
+    if (ds.share) {
+      return openDialog('<h3>Share with family</h3><p><strong>' + esc(ds.title) + '</strong></p><p class="sub">They’ll see it as a plan with you (and can add it to their calendar). It stays in your own calendar as it is.</p>' +
+        peopleBoxes([]) + '<label>Note for them <span class="sub">(optional)</span></label><input type="text" name="notes" maxlength="200">' +
+        '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">Share</button></div>',
+        async fd => { await api('adminLinkEvent', KEY, { eventId: ds.share, people: fd.getAll('people'), notes: fd.get('notes') }); return 'Shared.'; });
+    }
     if (ds.drop) {
       const a = ds.drop.split('|'), name = a[0] === 'sam' ? V.child : V.dog, label = V.days.find(d => d.date === a[1]).label;
       return confirmDialog('Can’t have ' + name + '?', 'No problem. We’ll take ' + name + ' off ' + esc(label) + (boss() ? '' : ' and we’ll get an email to say so') + '.', { text: 'Yes, take it off', note: true },
