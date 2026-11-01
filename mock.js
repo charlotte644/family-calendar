@@ -123,6 +123,8 @@
     plan('mumdad', dateAdd_(mon, 6), '13:00', '15:30', 'Sunday lunch', 'Nanay & Tatay\'s house', 'mumdad');
     plan('charlotte', dateAdd_(mon, 12), '', '', 'Day out at the zoo', 'Bristol Zoo Project', 'tomsmum');
     haveCare('demo-tomsmum-token-000000', { kind: 'nixon', date: dateAdd_(mon, 3), start: '09:00', end: '17:00', notes: 'I\'ll walk him at lunchtime' });
+    adminSaveIdea('demo-charlotte-key-00000000', { title: 'Christmas lights at Margam Park', place: 'Margam Country Park', price: '£14 adults, under 3s free', dog: 'no', url: 'example.com' });
+    adminSaveIdea('demo-charlotte-key-00000000', { title: 'Forest walk and hot chocolate', place: 'Wentwood Forest', price: 'Free (parking £3)', dog: 'yes', notes: 'Bring the sledge if it snows' });
     window.FAMCAL_SENT.length = 0;
   };
   window.FAMCAL_DEMO_PEOPLE = [['Charlotte', 'demo-charlotte-key-00000000'], ['Nanay & Tatay', 'demo-mumdad-token-0000000'], ['Nana', 'demo-tomsmum-token-000000'], ['Tom', 'demo-tom-token-0000000000']];

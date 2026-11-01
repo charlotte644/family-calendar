@@ -18,6 +18,24 @@
   html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 'Nunito Sans', system-ui, sans-serif; }
   body { padding: 0 16px 60px; }
   .wrap { max-width: 780px; margin: 0 auto; }
+  .wrap.wide { max-width: 1160px; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+  .side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; background: var(--card); border: 1px solid var(--line); border-radius: 18px; }
+  .side-in { padding: 14px 14px 16px; }
+  .side-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .side h3 { font-family: Fraunces, Georgia, serif; font-weight: 600; margin: 0; font-size: 1.2rem; }
+  .side h4 { margin: 18px 0 8px; font-size: 0.8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .idea { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin-top: 10px; background: #fffdf9; }
+  .idea-t { font-weight: 700; } .idea-t a { color: var(--ink); }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 4px; }
+  .chip { font-size: 0.75rem; font-weight: 700; background: #f1ece4; color: var(--muted); border-radius: 999px; padding: 2px 8px; }
+  .chip.ok { background: var(--dog-soft); color: #54408a; } .chip.no { background: #fdecea; color: var(--danger); }
+  .idea .row { margin-top: 6px; gap: 4px; }
+  .going { margin-top: 6px; font-size: 0.88rem; font-weight: 600; color: var(--brand); }
+  .open-tag { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: .03em; background: var(--sam-soft); color: #8a5a12; border-radius: 999px; padding: 1px 8px; margin-right: 4px; vertical-align: 1px; }
+  .jump { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: -8px 0 12px; font-size: 0.85rem; }
+  .jump label { margin: 0; font-weight: 600; color: var(--muted); white-space: nowrap; } .jump input { width: auto; padding: 5px 8px; }
+  @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } .side { position: static; max-height: none; order: -1; } }
   h1 { font-family: Fraunces, Georgia, serif; font-weight: 600; font-size: 1.9rem; margin: 26px 0 2px; letter-spacing: -0.01em; }
   .hello { color: var(--muted); margin: 0 0 16px; }
   button, .btn { font: inherit; font-weight: 600; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; padding: 7px 14px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
@@ -202,6 +220,7 @@
   // ---------- page ----------
   function render() {
     document.title = V.title || 'Family Calendar';
+    document.querySelector('.wrap').classList.toggle('wide', !!V.ideas && TAB === 'cal');
     $('#title').textContent = V.title || 'Family calendar';
     $('#hello').textContent = V.me.role === 'admin' ? 'Your own view: you can see everything, and only you can open Settings.' :
       V.me.role === 'full' ? 'Hi ' + V.me.name + '. You can see everything on here.' :
@@ -219,8 +238,53 @@
     h += '<div class="strip">' + V.days.map(tile).join('') + '</div>';
     h += '<div class="legend"><span><i class="sw free"></i>Free</span><span><i class="sw busy"></i>' + (boss() ? 'Busy' : 'We’re busy') + '</span><span><i class="sw plan"></i>' + (boss() ? 'Plans with family' : 'Plans with you') + '</span>' +
       (V.from !== V.today ? '<button class="link small" data-go="today">Back to today</button>' : '') + '</div>';
+    if (boss()) h += '<div class="jump"><label for="jump">Jump to a date</label><input type="date" id="jump" data-jump min="' + addDays(V.today, -28) + '" max="' + esc(V.lastDay) + '" value="' + V.from + '"></div>';
     V.days.forEach(d => { h += dayCard(d); });
+    if (V.ideas) h = '<div class="layout"><div class="cal">' + h + '</div><aside class="side">' + ideasPanel() + '</aside></div>';
     $('#main').innerHTML = h;
+  }
+
+  // ---------- Charlotte's things-to-do side panel ----------
+  const dogTxt = d => d === 'yes' ? '<span class="chip ok">🐶 Dog friendly</span>' : d === 'no' ? '<span class="chip no">No dogs</span>' : '<span class="chip">Dogs: not sure</span>';
+  function ideaCard(i) {
+    const facts = (i.price ? '<span class="chip">💷 ' + esc(i.price) + '</span>' : '') + dogTxt(i.dog);
+    let h = '<div class="idea"><div class="idea-t">' + (i.url ? '<a href="' + esc(i.url) + '" target="_blank" rel="noopener">' + esc(i.title) + '</a>' : esc(i.title)) + '</div>' +
+      (i.place ? '<div class="sub">📍 ' + esc(i.place) + '</div>' : '') + '<div class="chips">' + facts + '</div>' + (i.notes ? '<div class="sub">' + esc(i.notes) + '</div>' : '');
+    if (i.going) {
+      h += '<div class="going">✅ Going ' + esc(i.going.label) + '<br><span class="sub">' + (i.going.open ? (i.going.joined.length ? 'Joining: ' + esc(i.going.joined.join(', ')) : 'Open to everyone · nobody has joined yet') : 'Just us') + '</span></div>' +
+        '<div class="row"><button class="link small" data-goto="' + i.going.date + '">Show on calendar</button></div>';
+    } else {
+      h += '<div class="row"><button class="small primary" data-go-idea="' + esc(i.id) + '">We’re going</button><button class="link small" data-edit-idea="' + esc(i.id) + '">Edit</button><button class="link small danger" data-rm-idea="' + esc(i.id) + '">Remove</button></div>';
+    }
+    return h + '</div>';
+  }
+  function ideasPanel() {
+    const list = V.ideas || [], todo = list.filter(i => !i.going), going = list.filter(i => i.going).sort((a, b) => a.going.date < b.going.date ? -1 : 1);
+    return '<div class="side-in"><div class="side-head"><h3>Things to do</h3><button class="small primary" data-new-idea="1">＋ Add</button></div>' +
+      '<p class="sub" style="margin-top:0">Only you can see this list.</p>' +
+      (todo.length ? todo.map(ideaCard).join('') : '<p class="sub">No ideas yet. Add days out, events or places to try.</p>') +
+      (going.length ? '<h4>We’re going</h4>' + going.map(ideaCard).join('') : '') + '</div>';
+  }
+  function ideaDialog(i) {
+    i = i || { id: '', title: '', place: '', url: '', price: '', dog: '', notes: '' };
+    openDialog('<h3>' + (i.id ? 'Edit idea' : 'Add a thing to do') + '</h3>' +
+      '<label>What is it?</label><input type="text" name="title" maxlength="80" required value="' + esc(i.title) + '" placeholder="e.g. Christmas lights at Margam Park">' +
+      '<label>Where? <span class="sub">(optional)</span></label><input type="text" name="place" maxlength="120" value="' + esc(i.place) + '">' +
+      '<label>Price</label><input type="text" name="price" maxlength="80" value="' + esc(i.price) + '" placeholder="e.g. £12 adults, under 3s free">' +
+      '<label>Dog friendly?</label><select name="dog"><option value="">Not sure</option><option value="yes"' + (i.dog === 'yes' ? ' selected' : '') + '>Yes, dogs welcome</option><option value="no"' + (i.dog === 'no' ? ' selected' : '') + '>No dogs</option></select>' +
+      '<label>Website <span class="sub">(optional)</span></label><input type="text" name="url" maxlength="300" value="' + esc(i.url) + '" placeholder="https://…">' +
+      '<label>Notes <span class="sub">(optional)</span></label><textarea name="notes" maxlength="500">' + esc(i.notes) + '</textarea>' +
+      '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">Save</button></div>',
+      async fd => { await api('adminSaveIdea', KEY, { id: i.id, title: fd.get('title'), place: fd.get('place'), price: fd.get('price'), dog: fd.get('dog'), url: fd.get('url'), notes: fd.get('notes') }); return 'Saved.'; });
+  }
+  function goDialog(i) {
+    openDialog('<h3>We’re going: ' + esc(i.title) + '</h3>' +
+      '<label>Day</label><input type="date" name="date" required min="' + V.today + '" value="' + V.from + '">' +
+      timeFields({ allDay: false, start: '10:00', end: '15:00' }) +
+      '<label class="check"><input type="checkbox" name="open" checked> Let everyone join us <span class="sub">(every family link sees it with a “Join us” button; nobody is emailed)</span></label>' +
+      '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">Put it on the calendar</button></div>',
+      async fd => { await api('adminGoIdea', KEY, { id: i.id, date: fd.get('date'), allDay: !!fd.get('allDay'), start: fd.get('start'), end: fd.get('end'), open: !!fd.get('open') }); FROM = fd.get('date'); return 'On the calendar.'; });
+    wireAllDay();
   }
 
   // ---------- week at a glance ----------
@@ -292,12 +356,18 @@
     d.plans.forEach(p => {
       const when = p.start ? range(p.s, p.e) : 'All day';
       const others = p.withNames.filter((n, i) => p.people[i] !== V.me.id);
-      const withTxt = boss() ? (p.withNames.length ? 'with ' + p.withNames.join(', ') : '') : (others.length ? 'also with ' + others.join(', ') : '');
-      let acts = '<button class="link small" data-addcal="' + esc(p.id) + '">Add to calendar</button>';
+      let withTxt = boss() ? (p.withNames.length ? 'with ' + p.withNames.join(', ') : '') : (others.length ? 'also with ' + others.join(', ') : '');
+      if (p.open) withTxt = p.withNames.length ? (boss() ? 'Joining: ' : 'Coming: ') + p.withNames.map(n => n === V.me.name ? 'you' : n).join(', ') : (boss() ? 'Nobody has joined yet' : '');
+      let acts = '';
+      if (p.canJoin && !d.past) acts += '<button class="small primary" data-join="' + esc(p.id) + '">Join us</button>';
+      if (p.canLeave && !d.past) acts += '<button class="link small danger" data-leave="' + esc(p.id) + '">Can’t come after all</button>';
+      if (!p.open || p.mine || boss()) acts += '<button class="link small" data-addcal="' + esc(p.id) + '">Add to calendar</button>';
       if (p.canEdit && !d.past) acts += '<button class="link small" data-move="' + esc(p.id) + '">Change</button><button class="link small danger" data-cancel="' + esc(p.id) + '">Cancel</button>';
-      h += line('📅', 'plan', '<strong>' + esc(p.title) + '</strong> <span class="when">· ' + esc(when) + '</span>' +
+      const facts = [p.price ? '💷 ' + esc(p.price) : '', p.dog === 'yes' ? '🐶 Dog friendly' : p.dog === 'no' ? 'No dogs' : '', p.url ? '<a href="' + esc(p.url) + '" target="_blank" rel="noopener">Website</a>' : ''].filter(Boolean).join(' · ');
+      h += line('📅', 'plan', (p.open ? '<span class="open-tag">Everyone welcome</span> ' : '') + '<strong>' + esc(p.title) + '</strong> <span class="when">· ' + esc(when) + '</span>' +
         ((p.place || withTxt) ? '<div class="sub">' + [p.place ? '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.place) + '" target="_blank" rel="noopener">' + esc(p.place) + '</a>' : '', esc(withTxt)].filter(Boolean).join(' · ') + '</div>' : '') +
-        (p.notes ? '<div class="sub">' + esc(p.notes) + '</div>' : ''), acts);
+        (facts ? '<div class="sub">' + facts + '</div>' : '') +
+        (p.notes && !p.open && !p.price && !p.dog ? '<div class="sub">' + esc(p.notes) + '</div>' : ''), acts);
     });
     h += careLine('sam', d) + careLine('nixon', d);
     if (boss()) {
@@ -451,6 +521,21 @@
     }
     if (ds.have) { const a = ds.have.split('|'); return haveDialog(a[0], a[1]); }
     if (ds.work) return workDialog(ds.work);
+    const findIdea = id => (V.ideas || []).find(i => i.id === id);
+    if (ds.newIdea) return ideaDialog(null);
+    if (ds.editIdea) return ideaDialog(findIdea(ds.editIdea));
+    if (ds.goIdea) return goDialog(findIdea(ds.goIdea));
+    if (ds.rmIdea) {
+      const i = findIdea(ds.rmIdea);
+      return confirmDialog('Remove this idea?', '<strong>' + esc(i.title) + '</strong>', { text: 'Remove' }, async () => { await api('adminRemoveIdea', KEY, i.id); return 'Removed.'; });
+    }
+    if (ds.goto) return load(ds.goto);
+    if (ds.join || ds.leave) {
+      t.disabled = true;
+      try { await api('joinPlan', KEY, ds.join || ds.leave, !!ds.join); toast(ds.join ? 'Lovely, see you there!' : 'No problem, we’ve taken you off.'); await load(FROM); }
+      catch (e) { toast(e.message); t.disabled = false; }
+      return;
+    }
     if (ds.share) {
       return openDialog('<h3>Share with family</h3><p><strong>' + esc(ds.title) + '</strong></p><p class="sub">They’ll see it as a plan with you (and can add it to their calendar). It stays in your own calendar as it is.</p>' +
         peopleBoxes([]) + '<label>Note for them <span class="sub">(optional)</span></label><input type="text" name="notes" maxlength="200">' +
@@ -543,6 +628,8 @@
       }
     } catch (e) { toast(e.message); }
   });
+  // Jump straight to any date (Charlotte and Tom).
+  document.addEventListener('change', ev => { if (ev.target.matches && ev.target.matches('[data-jump]') && ev.target.value) load(ev.target.value); });
   // Keep the pattern rows in memory while editing, so "+ Add a day" does not lose changes.
   document.addEventListener('change', ev => {
     const tr = ev.target.closest && ev.target.closest('tr[data-pat], tr[data-rt]'); if (!tr || !ADMIN) return;
