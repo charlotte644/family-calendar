@@ -83,6 +83,8 @@
   window.FAMCAL_SENT = [];
   window.MailApp = { sendEmail: o => { window.FAMCAL_SENT.push(o); console.log('[preview email] to ' + o.to + ': ' + o.subject); }, getRemainingDailyQuota: () => 100 };
   window.Logger = { log: m => console.log(m) };
+  const chain = { timeBased() { return chain; }, everyDays() { return chain; }, atHour() { return chain; }, inTimezone() { return chain; }, create() { return {}; } };
+  window.ScriptApp = { getProjectTriggers: () => [], deleteTrigger() {}, newTrigger: () => chain };
   window.ContentService = { MimeType: { JSON: 'json', ICAL: 'ical' }, createTextOutput: t => ({ text: t, setMimeType() { return this; } }) };
 
   window.FAMCAL_MOCK = function (fn, args) {
@@ -123,8 +125,10 @@
     plan('mumdad', dateAdd_(mon, 6), '13:00', '15:30', 'Sunday lunch', 'Nanay & Tatay\'s house', 'mumdad');
     plan('charlotte', dateAdd_(mon, 12), '', '', 'Day out at the zoo', 'Bristol Zoo Project', 'tomsmum');
     haveCare('demo-tomsmum-token-000000', { kind: 'nixon', date: dateAdd_(mon, 3), start: '09:00', end: '17:00', notes: 'I\'ll walk him at lunchtime' });
-    adminSaveIdea('demo-charlotte-key-00000000', { title: 'Christmas lights at Margam Park', place: 'Margam Country Park', price: '£14 adults, under 3s free', dog: 'no', url: 'example.com' });
+    if (window.FAMCAL_IDEAS) adminImportIdeas('demo-charlotte-key-00000000', window.FAMCAL_IDEAS);
     adminSaveIdea('demo-charlotte-key-00000000', { title: 'Forest walk and hot chocolate', place: 'Wentwood Forest', price: 'Free (parking £3)', dog: 'yes', notes: 'Bring the sledge if it snows' });
+    adminSaveCard('demo-charlotte-key-00000000', 'sam', [{ section: 'Daily routine & naps', text: 'Up about 6:30. Nap 12:30–2pm with his bunny.' }, { section: 'Food & drink', text: 'Loves pasta and bananas. Milk before bed.' }]);
+    adminSaveBirthdays('demo-charlotte-key-00000000', [{ name: 'Tatay', date: '1960-' + dateAdd_(mon, 2).slice(5), kind: 'birthday', gift: 'Golf balls' }]);
     window.FAMCAL_SENT.length = 0;
   };
   window.FAMCAL_DEMO_PEOPLE = [['Charlotte', 'demo-charlotte-key-00000000'], ['Nanay & Tatay', 'demo-mumdad-token-0000000'], ['Nana', 'demo-tomsmum-token-000000'], ['Tom', 'demo-tom-token-0000000000']];

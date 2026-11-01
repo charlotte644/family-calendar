@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Family Calendar</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="theme-color" content="#2f5d50">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Family">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -19,6 +27,24 @@
   body { padding: 0 16px 60px; }
   .wrap { max-width: 780px; margin: 0 auto; }
   .wrap.wide { max-width: 1160px; }
+  html.big { font-size: 18.5px; } html.big body { font-size: 18.5px; } html.big .sub, html.big .when { font-size: 0.95rem; } html.big .dayacts button { font-size: 0.95rem; padding: 8px 14px; }
+  .tools { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; margin: -6px 0 12px; }
+  .weekcard { background: var(--brand); color: #fff; border-radius: 18px; padding: 16px 18px; margin-bottom: 14px; }
+  .weekcard h2 { font-family: Fraunces, Georgia, serif; font-weight: 600; margin: 0 0 8px; font-size: 1.4rem; }
+  .weekcard ul { margin: 0 0 12px; padding-left: 20px; font-size: 1.08rem; line-height: 1.7; }
+  .weekcard p { margin: 0 0 12px; }
+  .weekcard button { background: rgba(255,255,255,.14); color: #fff; border-color: rgba(255,255,255,.35); }
+  .weekcard button.primary { background: #fff; color: var(--brand); padding: 2px 10px; font-size: 0.85rem; margin-left: 6px; }
+  .banner { background: #fdf1d8; border: 1px solid #f0d3a6; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; }
+  .banner.soft { background: #fffaf0; }
+  .banner.needs { background: var(--free); border-color: #c9e0d5; } .banner.needs ul { margin: 6px 0 0; padding-left: 18px; }
+  .weekcard .asked { background: rgba(255,255,255,.12); border-radius: 10px; padding: 6px 10px; font-size: 0.95rem; }
+  .filters { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 2px; }
+  .filters button { font-size: 0.75rem; padding: 3px 9px; } .filters button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .comments { margin-top: 6px; padding: 6px 10px; background: var(--bg); border-radius: 10px; font-size: 0.86rem; display: grid; gap: 3px; }
+  .cform { display: flex; gap: 6px; margin-top: 4px; } .cform input { padding: 5px 8px; font-size: 0.86rem; }
+  .cardsec h4 { margin: 12px 0 2px; font-size: 0.85rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); } .cardsec p { margin: 0; }
+  .dayacts button.ot { background: #fdf1d8; color: #8a5a12; }
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
   .side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; background: var(--card); border: 1px solid var(--line); border-radius: 18px; }
   .side-in { padding: 14px 14px 16px; }
@@ -161,7 +187,7 @@
   let KEY = '';
   try {
     const m = /[#&]k=([A-Za-z0-9_-]+)/.exec(location.hash);
-    if (m) { KEY = m[1]; localStorage.setItem('famcal_k', KEY); history.replaceState(null, '', location.pathname + location.search); }
+    if (m) { KEY = m[1]; localStorage.setItem('famcal_k', KEY); }   // the link stays in the address, so "Add to Home Screen" keeps it
     else KEY = localStorage.getItem('famcal_k') || '';
   } catch (e) { const m = /[#&]k=([A-Za-z0-9_-]+)/.exec(location.hash); KEY = m ? m[1] : ''; }
   if (DEMO && !KEY) KEY = 'demo-charlotte-key-00000000';
@@ -225,15 +251,69 @@
     $('#hello').textContent = V.me.role === 'admin' ? 'Your own view: you can see everything, and only you can open Settings.' :
       V.me.role === 'full' ? 'Hi ' + V.me.name + '. You can see everything on here.' :
       'Hi ' + V.me.name + '. Here’s when ' + V.us + ' are free, where ' + V.child + ' and ' + V.dog + ' are, and the plans we’ve got together.';
-    let top = '';
+    // Bigger text: on by default for family links, and anyone can switch it.
+    let big = V.me.role === 'family';
+    try { const s = localStorage.getItem('famcal_big'); if (s !== null) big = s === '1'; } catch (e) { /* default */ }
+    document.documentElement.classList.toggle('big', big);
+    let top = '<div class="tools"><button class="small" data-big="1" aria-pressed="' + big + '">' + (big ? 'Smaller text' : 'Bigger text') + '</button>' +
+      (V.me.role !== 'family' ? '<button class="small" data-card="sam">🧒 ' + esc(V.child) + '’s card</button><button class="small" data-card="nixon">🐶 ' + esc(V.dog) + '’s card</button>' : '') + '</div>';
     if (V.me.role === 'admin') top += '<div class="tabs"><button data-tab="cal" aria-pressed="' + (TAB === 'cal') + '">Calendar</button><button data-tab="set" aria-pressed="' + (TAB === 'set') + '">People &amp; settings</button></div>';
     $('#top').innerHTML = top;
     if (TAB === 'set' && V.me.role === 'admin') return renderSettings();
     renderCalendar();
   }
 
+  // ---------- family: a simple "your week" card at the top ----------
+  function weekCard() {
+    const mine = [];
+    V.days.filter(d => !d.past).forEach(d => {
+      const day = d.date === V.today ? 'Today' : d.label.split(' ').slice(0, 1)[0] + ' ' + d.label.split(' ')[1];
+      ['sam', 'nixon'].forEach(k => d[k].filter(c => c.mine).forEach(c => mine.push('<li><strong>' + esc(day) + '</strong>: you have ' + esc(k === 'sam' ? V.child : V.dog) + (c.start ? ', ' + range(c.s, c.e) : '') + (c.overnight ? ' (overnight)' : '') + '</li>')));
+      d.plans.filter(p => p.mine).forEach(p => mine.push('<li><strong>' + esc(day) + '</strong>: ' + esc(p.title) + (p.start ? ', ' + range(p.s, p.e) : '') + '</li>'));
+      d.plans.filter(p => p.canJoin).forEach(p => mine.push('<li><strong>' + esc(day) + '</strong>: ' + esc(p.title) + ' — everyone’s welcome <button class="small primary" data-join="' + esc(p.id) + '">Join us</button></li>'));
+    });
+    const asked = (V.needs || []).length ? '<p class="asked">You’ve asked us to bring: ' + V.needs.map(n => esc(n.item)).join(', ') + '</p>' : '';
+    return '<section class="weekcard"><h2>Your week</h2>' + (mine.length ? '<ul>' + mine.join('') + '</ul>' : '<p>Nothing booked with us this week.</p>') + asked +
+      '<div class="row"><button data-card="sam">🧒 ' + esc(V.child) + '’s care card</button><button data-card="nixon">🐶 ' + esc(V.dog) + '’s care card</button>' +
+      '<button data-need="1">🛍️ We need more…</button></div></section>';
+  }
+  // Charlotte and Tom: what carers have asked us to bring
+  function needsPanel() {
+    if (V.me.role === 'family' || !(V.needs || []).length) return '';
+    return '<div class="banner needs"><strong>🛍️ To bring next time</strong><ul>' + V.needs.map(n => '<li>' + esc(n.item) + ' for ' + esc(n.kind === 'nixon' ? V.dog : V.child) +
+      ' <span class="sub">(' + esc(n.who) + (n.note ? ': ' + esc(n.note) : '') + ')</span> <button class="link small" data-needdone="' + esc(n.id) + '">Got it ✓</button></li>').join('') + '</ul></div>';
+  }
+  function needDialog() {
+    const opts = { sam: ['Nappies', 'Wipes', 'Nappy cream', 'Spare clothes', 'Snacks', 'Milk', 'Calpol'], nixon: ['Dog food', 'Treats', 'Poo bags'] };
+    openDialog('<h3>We need more…</h3><p class="sub">Tick what you’re running low on and we’ll bring it next time.</p>' +
+      '<label>For</label><select name="kind"><option value="sam">' + esc(V.child) + '</option><option value="nixon">' + esc(V.dog) + '</option></select>' +
+      '<div data-opts></div><label>Anything else?</label><input type="text" name="other" maxlength="60" placeholder="e.g. a warmer coat">' +
+      '<label>Note <span class="sub">(optional)</span></label><input type="text" name="note" maxlength="200" placeholder="e.g. size 5 nappies">' +
+      '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">Send to Charlotte &amp; Tom</button></div>',
+      async fd => {
+        const items = fd.getAll('item').concat(fd.get('other') ? [fd.get('other')] : []);
+        await api('addNeed', KEY, { kind: fd.get('kind'), items: items, note: fd.get('note') }); return 'Thanks, we’ll bring it next time.';
+      });
+    const sel = form.querySelector('[name=kind]'), box = form.querySelector('[data-opts]');
+    const draw = () => { box.innerHTML = opts[sel.value].map(o => '<label class="check" style="margin-top:6px;font-weight:400"><input type="checkbox" name="item" value="' + esc(o) + '"> ' + esc(o) + '</label>').join(''); };
+    sel.onchange = draw; draw();
+  }
+  function busyBanner() {
+    if (!V.freeEvenings) return '';
+    const n = V.freeEvenings.length;
+    if (n === 0) return '<div class="banner">⚠️ <strong>Busy week:</strong> not one free evening in these seven days.</div>';
+    if (n === 1) return '<div class="banner soft">Only one free evening this week: ' + esc(V.days.find(d => d.date === V.freeEvenings[0]).label) + '.</div>';
+    return '';
+  }
+  function homeScreenHelp() {
+    return '<details class="panel"><summary>📱 Put this on your phone’s home screen</summary>' +
+      '<p><strong>iPhone:</strong> open this page in Safari, tap the Share button (square with an arrow), then <strong>Add to Home Screen</strong>.</p>' +
+      '<p><strong>Android:</strong> open it in Chrome, tap the ⋮ menu, then <strong>Add to Home screen</strong> (or Install app).</p>' +
+      '<p class="sub" style="margin-bottom:0">It then opens like an app, straight to your own calendar.</p></details>';
+  }
+
   function renderCalendar() {
-    let h = subscribePanel();
+    let h = (V.me.role === 'family' ? weekCard() : '') + needsPanel() + busyBanner() + subscribePanel() + homeScreenHelp();
     h += '<div class="week"><button data-go="back" ' + (V.canBack ? '' : 'disabled') + ' aria-label="Previous week">‹ Back</button><strong>' + esc(weekTitle(V.from, V.to)) + '</strong><button data-go="next" ' + (V.canForward ? '' : 'disabled') + ' aria-label="Next week">Next ›</button></div>';
     h += '<div class="strip">' + V.days.map(tile).join('') + '</div>';
     h += '<div class="legend"><span><i class="sw free"></i>Free</span><span><i class="sw busy"></i>' + (boss() ? 'Busy' : 'We’re busy') + '</span><span><i class="sw plan"></i>' + (boss() ? 'Plans with family' : 'Plans with you') + '</span>' +
@@ -249,21 +329,30 @@
   function ideaCard(i) {
     const facts = (i.price ? '<span class="chip">💷 ' + esc(i.price) + '</span>' : '') + dogTxt(i.dog);
     let h = '<div class="idea"><div class="idea-t">' + (i.url ? '<a href="' + esc(i.url) + '" target="_blank" rel="noopener">' + esc(i.title) + '</a>' : esc(i.title)) + '</div>' +
-      (i.place ? '<div class="sub">📍 ' + esc(i.place) + '</div>' : '') + '<div class="chips">' + facts + '</div>' + (i.notes ? '<div class="sub">' + esc(i.notes) + '</div>' : '');
+      (i.place ? '<div class="sub">📍 ' + esc(i.place) + '</div>' : '') + (i.when && !i.going ? '<div class="sub">🗓 ' + esc(i.when) + '</div>' : '') +
+      '<div class="chips">' + facts + '</div>' + (i.notes ? '<div class="sub">' + esc(i.notes) + '</div>' : '');
     if (i.going) {
       h += '<div class="going">✅ Going ' + esc(i.going.label) + '<br><span class="sub">' + (i.going.open ? (i.going.joined.length ? 'Joining: ' + esc(i.going.joined.join(', ')) : 'Open to everyone · nobody has joined yet') : 'Just us') + '</span></div>' +
-        '<div class="row"><button class="link small" data-goto="' + i.going.date + '">Show on calendar</button></div>';
+        '<div class="row"><button class="link small" data-goto="' + i.going.date + '">Show on calendar</button>' +
+        '<button class="link small" data-open="' + esc(i.going.planId) + '|' + (i.going.open ? '0' : '1') + '">' + (i.going.open ? 'Make it just us' : 'Let everyone join') + '</button></div>';
     } else {
       h += '<div class="row"><button class="small primary" data-go-idea="' + esc(i.id) + '">We’re going</button><button class="link small" data-edit-idea="' + esc(i.id) + '">Edit</button><button class="link small danger" data-rm-idea="' + esc(i.id) + '">Remove</button></div>';
     }
     return h + '</div>';
   }
   function ideasPanel() {
-    const list = V.ideas || [], todo = list.filter(i => !i.going), going = list.filter(i => i.going).sort((a, b) => a.going.date < b.going.date ? -1 : 1);
+    const list = V.ideas || [], going = list.filter(i => i.going).sort((a, b) => a.going.date < b.going.date ? -1 : 1);
     return '<div class="side-in"><div class="side-head"><h3>Things to do</h3><button class="small primary" data-new-idea="1">＋ Add</button></div>' +
       '<p class="sub" style="margin-top:0">Only you can see this list.</p>' +
-      (todo.length ? todo.map(ideaCard).join('') : '<p class="sub">No ideas yet. Add days out, events or places to try.</p>') +
-      (going.length ? '<h4>We’re going</h4>' + going.map(ideaCard).join('') : '') + '</div>';
+      '<div class="filters">' + [['all', 'All'], ['dog', '🐶 Dog friendly'], ['free', 'Free'], ['dated', 'Has a date']].map(f => '<button class="small' + (IDEA_FILTER === f[0] ? ' on' : '') + '" data-ifilter="' + f[0] + '">' + f[1] + '</button>').join('') + '</div>' +
+      (going.length ? '<h4>We’re going</h4>' + going.map(ideaCard).join('') : '') +
+      '<h4>Ideas</h4>' + (todoList().length ? todoList().map(ideaCard).join('') : '<p class="sub">Nothing here. Add days out, events or places to try.</p>') + '</div>';
+  }
+  let IDEA_FILTER = 'all';
+  function todoList() {
+    return (V.ideas || []).filter(i => !i.going).filter(i => IDEA_FILTER === 'all' || (IDEA_FILTER === 'dog' && i.dog === 'yes') ||
+      (IDEA_FILTER === 'free' && /^free/i.test(i.price)) || (IDEA_FILTER === 'dated' && i.date && i.date >= V.today))
+      .sort((a, b) => (a.date && a.date >= V.today ? a.date : '9') < (b.date && b.date >= V.today ? b.date : '9') ? -1 : 1);
   }
   function ideaDialog(i) {
     i = i || { id: '', title: '', place: '', url: '', price: '', dog: '', notes: '' };
@@ -273,14 +362,17 @@
       '<label>Price</label><input type="text" name="price" maxlength="80" value="' + esc(i.price) + '" placeholder="e.g. £12 adults, under 3s free">' +
       '<label>Dog friendly?</label><select name="dog"><option value="">Not sure</option><option value="yes"' + (i.dog === 'yes' ? ' selected' : '') + '>Yes, dogs welcome</option><option value="no"' + (i.dog === 'no' ? ' selected' : '') + '>No dogs</option></select>' +
       '<label>Website <span class="sub">(optional)</span></label><input type="text" name="url" maxlength="300" value="' + esc(i.url) + '" placeholder="https://…">' +
-      '<label>Notes <span class="sub">(optional)</span></label><textarea name="notes" maxlength="500">' + esc(i.notes) + '</textarea>' +
+      '<label>When <span class="sub">(optional, e.g. “Weekends in December” or “Spring”)</span></label><input type="text" name="when" maxlength="120" value="' + esc(i.when || '') + '">' +
+      '<label>A particular day? <span class="sub">(optional)</span></label><input type="date" name="date" value="' + esc(i.date || '') + '">' +
+      '<label>Notes <span class="sub">(optional)</span></label><textarea name="notes" maxlength="600">' + esc(i.notes) + '</textarea>' +
       '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">Save</button></div>',
-      async fd => { await api('adminSaveIdea', KEY, { id: i.id, title: fd.get('title'), place: fd.get('place'), price: fd.get('price'), dog: fd.get('dog'), url: fd.get('url'), notes: fd.get('notes') }); return 'Saved.'; });
+      async fd => { await api('adminSaveIdea', KEY, { id: i.id, title: fd.get('title'), place: fd.get('place'), price: fd.get('price'), dog: fd.get('dog'), url: fd.get('url'), notes: fd.get('notes'), when: fd.get('when'), date: fd.get('date'), start: i.start || '', end: i.end || '' }); return 'Saved.'; });
   }
   function goDialog(i) {
     openDialog('<h3>We’re going: ' + esc(i.title) + '</h3>' +
-      '<label>Day</label><input type="date" name="date" required min="' + V.today + '" value="' + V.from + '">' +
-      timeFields({ allDay: false, start: '10:00', end: '15:00' }) +
+      (i.when ? '<p class="sub">🗓 ' + esc(i.when) + '</p>' : '') +
+      '<label>Day</label><input type="date" name="date" required min="' + V.today + '" value="' + (i.date && i.date >= V.today ? i.date : V.from) + '">' +
+      timeFields({ allDay: !i.start && !!i.date, start: i.start || '10:00', end: i.end || '15:00' }) +
       '<label class="check"><input type="checkbox" name="open" checked> Let everyone join us <span class="sub">(every family link sees it with a “Join us” button; nobody is emailed)</span></label>' +
       '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">Put it on the calendar</button></div>',
       async fd => { await api('adminGoIdea', KEY, { id: i.id, date: fd.get('date'), allDay: !!fd.get('allDay'), start: fd.get('start'), end: fd.get('end'), open: !!fd.get('open') }); FROM = fd.get('date'); return 'On the calendar.'; });
@@ -342,7 +434,7 @@
         acts = c.pattern ? '<button class="link small danger" data-drop="' + kind + '|' + d.date + '|' + esc(c.person) + '|">Can’t this time</button>'
           : '<button class="link small danger" data-drop="' + kind + '|' + d.date + '|' + esc(c.person) + '|' + esc(c.id) + '">Can’t after all</button>';
       }
-      return line(ico, cls, '<strong>' + esc(name) + '</strong> is with <strong>' + esc(who) + '</strong> <span class="when">· ' + when + (c.pattern ? ', usual day' : '') + '</span>' +
+      return line(ico, cls, '<strong>' + esc(name) + '</strong> is with <strong>' + esc(who) + '</strong> <span class="when">· ' + when + (c.overnight ? ', overnight' : '') + (c.pattern ? ', usual day' : '') + '</span>' +
         (c.notes ? '<div class="sub">' + esc(c.notes) + '</div>' : ''), acts);
     }).join('');
   }
@@ -353,6 +445,9 @@
     h += '<div class="date"><span class="wd">' + (isToday ? 'Today' : p.wd) + '</span><span class="num">' + p.num + '</span><span class="mo">' + p.mo + '</span></div><div>';
     h += '<div class="dayhead"><h2>' + (isToday ? '<span class="m-today">Today · </span>' : '') + esc(d.label) + '</h2><span class="pill' + (st.cls === 'busy' ? ' full' : st.cls === 'part' ? ' part' : '') + '">' + esc(ft.text) + '</span></div>';
     h += bar(d) + '<div class="lines">';
+    if (d.bankHoliday) h += line('🏖️', 'busy', '<strong>Bank holiday</strong>', '');
+    (d.birthdays || []).forEach(b => { h += line(b.kind === 'anniversary' ? '💐' : '🎂', 'sam', '<strong>' + esc(b.name) + '’s ' + b.kind + '</strong>' + (b.years ? ' <span class="when">· ' + b.years + (b.kind === 'birthday' ? ' today' : ' years') + '</span>' : '') +
+      (b.gift ? '<div class="sub">🎁 Gift idea (only you see this): ' + esc(b.gift) + '</div>' : ''), ''); });
     d.plans.forEach(p => {
       const when = p.start ? range(p.s, p.e) : 'All day';
       const others = p.withNames.filter((n, i) => p.people[i] !== V.me.id);
@@ -367,7 +462,9 @@
       h += line('📅', 'plan', (p.open ? '<span class="open-tag">Everyone welcome</span> ' : '') + '<strong>' + esc(p.title) + '</strong> <span class="when">· ' + esc(when) + '</span>' +
         ((p.place || withTxt) ? '<div class="sub">' + [p.place ? '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.place) + '" target="_blank" rel="noopener">' + esc(p.place) + '</a>' : '', esc(withTxt)].filter(Boolean).join(' · ') + '</div>' : '') +
         (facts ? '<div class="sub">' + facts + '</div>' : '') +
-        (p.notes && !p.open && !p.price && !p.dog ? '<div class="sub">' + esc(p.notes) + '</div>' : ''), acts);
+        (p.notes && !p.open && !p.price && !p.dog ? '<div class="sub">' + esc(p.notes) + '</div>' : '') +
+        (p.comments ? '<div class="comments">' + p.comments.map(c => '<div><strong>' + esc(c.who) + ':</strong> ' + esc(c.text) + '</div>').join('') +
+          (!d.past ? '<form class="cform" data-cplan="' + esc(p.id) + '"><input type="text" name="c" maxlength="300" placeholder="Add a note for everyone going…"><button class="small">Add</button></form>' : '') + '</div>' : ''), acts);
     });
     h += careLine('sam', d) + careLine('nixon', d);
     if (boss()) {
@@ -382,9 +479,13 @@
     h += '</div>';
     if (!d.past || boss()) {
       h += '<div class="dayacts"><button data-plan="' + d.date + '">＋ ' + (boss() ? 'Plan' : 'Plan something with us') + '</button>' +
-        '<button data-have="sam|' + d.date + '">🧒 ' + (boss() ? 'Who has ' + esc(V.child) : 'I’ll have ' + esc(V.child)) + '</button>' +
-        '<button data-have="nixon|' + d.date + '">🐶 ' + (boss() ? 'Who has ' + esc(V.dog) : 'I’ll have ' + esc(V.dog)) + '</button>' +
-        ((V.workers || []).length ? '<button data-work="' + d.date + '">💼 ' + (V.me.role === 'admin' ? 'Leave / overtime' : 'Overtime / off') + '</button>' : '') + '</div>';
+        // only offered when he isn't already with someone for the whole day
+        (d.sam.some(c => !c.start) ? '' : '<button data-have="sam|' + d.date + '">🧒 ' + (boss() ? 'Who has ' + esc(V.child) : 'I’ll have ' + esc(V.child)) + '</button>') +
+        (d.nixon.some(c => !c.start) ? '' : '<button data-have="nixon|' + d.date + '">🐶 ' + (boss() ? 'Who has ' + esc(V.dog) : 'I’ll have ' + esc(V.dog)) + '</button>') +
+        ((V.workers || []).length ? '<button data-work="' + d.date + '">💼 ' + (V.me.role === 'admin' ? 'Leave / overtime' : 'Overtime / off') + '</button>' : '') +
+        // Tom: one-tap overtime on top of today's hours, or a one-tap shift on a day he isn't working
+        (V.me.role === 'full' && !d.past ? (d.myWork ? [60, 120, 180].map(m => '<button class="ot" data-ot="' + d.date + '|' + d.myWork.s + '|' + (d.myWork.e + m) + '">+' + (m / 60) + 'h</button>').join('')
+          : '<button class="ot" data-ot="' + d.date + '|420|960">Shift 7am–4pm</button>') : '') + '</div>';
     }
     return h + '</div></article>';
   }
@@ -478,6 +579,14 @@
     form.querySelectorAll('[name=mode]').forEach(rb => rb.onchange = () => { hours.hidden = form.querySelector('[name=mode]:checked').value !== 'hours'; });
   }
 
+  function cardDialog(kind) {
+    const c = (V.cards || {})[kind] || [], name = kind === 'sam' ? V.child : V.dog, filled = c.filter(s => s.text);
+    openDialog('<h3>' + (kind === 'sam' ? '🧒 ' : '🐶 ') + esc(name) + '’s care card</h3>' +
+      (filled.length ? filled.map(s => '<div class="cardsec"><h4>' + esc(s.section) + '</h4><p>' + esc(s.text).replace(/\n/g, '<br>').replace(/(0\d{4} ?\d{6})/g, '<a href="tel:$1">$1</a>') + '</p></div>').join('')
+        : '<p class="sub">Nothing on here yet.</p>') +
+      '<div class="dlgacts">' + (V.me.role === 'family' ? '<button type="button" data-need="1">🛍️ We need more…</button>' : '') + '<button type="button" data-close>Close</button></div>', async () => '');
+  }
+
   function confirmDialog(title, body, okText, fn) {
     openDialog('<h3>' + esc(title) + '</h3><p>' + body + '</p>' + (okText.note ? '<label>Anything to add? <span class="sub">(optional)</span></label><textarea name="notes" maxlength="500"></textarea>' : '') +
       '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">' + esc(okText.text) + '</button></div>', fn);
@@ -521,6 +630,21 @@
     }
     if (ds.have) { const a = ds.have.split('|'); return haveDialog(a[0], a[1]); }
     if (ds.work) return workDialog(ds.work);
+    if (ds.big) { const on = !document.documentElement.classList.contains('big'); try { localStorage.setItem('famcal_big', on ? '1' : '0'); } catch (e) { } render(); return; }
+    if (ds.card) return cardDialog(ds.card);
+    if (ds.need) return needDialog();
+    if (ds.needdone) { t.disabled = true; try { await api('doneNeed', KEY, ds.needdone); await load(FROM); } catch (e) { toast(e.message); } return; }
+    if (ds.ifilter) { IDEA_FILTER = ds.ifilter; render(); return; }
+    if (ds.open) {
+      const a = ds.open.split('|'); t.disabled = true;
+      try { await api('adminSetOpen', KEY, a[0], a[1] === '1'); toast(a[1] === '1' ? 'Everyone can now see it and join.' : 'Now it’s just us.'); await load(FROM); } catch (e) { toast(e.message); }
+      return;
+    }
+    if (ds.ot) {
+      const a = ds.ot.split('|'), s = +a[1], e = Math.min(+a[2], 1439); t.disabled = true;
+      try { await api('setWork', KEY, { date: a[0], mode: 'hours', start: hhmm(s), end: hhmm(e), reason: e - s > 540 ? 'overtime' : 'shift' }); toast('Saved: ' + range(s, e) + '.'); await load(FROM); } catch (er) { toast(er.message); t.disabled = false; }
+      return;
+    }
     const findIdea = id => (V.ideas || []).find(i => i.id === id);
     if (ds.newIdea) return ideaDialog(null);
     if (ds.editIdea) return ideaDialog(findIdea(ds.editIdea));
@@ -560,7 +684,9 @@
   // ---------- Charlotte's settings ----------
   const WEEKDAYS = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const SETTING_LABELS = { title: 'Page heading', us_label: 'Who “we” are', child_name: 'Little one’s name', dog_name: 'Dog’s name', notify_emails: 'Email me about changes at',
-    calendar_ids: 'Calendars that make us busy', ignore_words: 'Never count events containing', allday_busy: 'All-day events make the day busy (yes/no)', day_start: 'Day starts', day_end: 'Day ends', weeks_ahead: 'Weeks ahead family can see', site_url: 'Address of this page' };
+    calendar_ids: 'Calendars that make us busy', ignore_words: 'Never count events containing', allday_busy: 'All-day events make the day busy (yes/no)', day_start: 'Day starts', day_end: 'Day ends', weeks_ahead: 'Weeks ahead family can see', site_url: 'Address of this page',
+    bank_holidays: 'Bank holidays (work hours don’t count)', rota_start: 'Rota week 1 starts on (a Monday)', reminders: 'Evening-before reminders to carers (on/off)', summary: 'Sunday summary to me and Tom (on/off)' };
+  const ROTAS = ['', '1/2', '2/2', '1/3', '2/3', '3/3', '1/4', '2/4', '3/4', '4/4'];
   async function renderSettings() {
     if (!ADMIN) {
       $('#main').innerHTML = '<p class="loading">Loading…</p>';
@@ -579,12 +705,13 @@
     });
     h += '<tr data-person=""><td><input type="text" name="name" placeholder="New person, e.g. Auntie Jo"></td><td><input type="text" inputmode="email" name="email" placeholder="emails (optional), separated by commas">' + roles('family') + '<input type="checkbox" name="active" checked hidden></td><td><button class="small primary" data-saveperson="">Add</button></td></tr></table></div>';
 
-    h += '<div class="panel settings"><h3>Usual work hours</h3><p class="sub">These count as busy every week. Change a single day (overtime, annual leave) with the “Work” button on that day instead.</p><table>';
+    h += '<div class="panel settings"><h3>Usual work hours</h3><p class="sub">These count as busy (not on bank holidays). Change a single day (overtime, annual leave) with the “Work” button on that day instead. For a rotating pattern, e.g. earlies one week and lates the next, add both and set “Week 1 of 2” / “Week 2 of 2” (week 1 starts on the date in Settings).</p><table>';
     A.routine.forEach((r, i) => {
       h += '<tr data-rt="' + i + '"><td><select name="who">' + A.workers.map(w => '<option value="' + esc(w.id) + '"' + (r.who === w.id ? ' selected' : '') + '>' + esc(w.name) + '</option>').join('') + '</select></td>' +
         '<td><select name="weekday">' + WEEKDAYS.slice(1).map((w, j) => '<option value="' + (j + 1) + '"' + (r.weekday === j + 1 ? ' selected' : '') + '>' + w + '</option>').join('') + '</select></td>' +
         '<td><input type="time" name="start" value="' + esc(r.start) + '" step="900"><input type="time" name="end" value="' + esc(r.end) + '" step="900" style="margin-top:4px"></td>' +
-        '<td><input type="text" name="label" value="' + esc(r.label) + '" placeholder="e.g. Tom at work"></td>' +
+        '<td><input type="text" name="label" value="' + esc(r.label) + '" placeholder="e.g. Tom at work"><select name="rota" style="margin-top:4px">' +
+        ROTAS.map(x => '<option value="' + x + '"' + ((r.rota || '') === x ? ' selected' : '') + '>' + (x ? 'Week ' + x.replace('/', ' of ') : 'Every week') + '</option>').join('') + '</select></td>' +
         '<td><button class="small danger" data-delwork="' + i + '" aria-label="Remove">✕</button></td></tr>';
     });
     h += '</table><div class="row" style="margin-top:10px"><button class="small" data-addwork="1">+ Add a day</button><button class="small primary" data-saveroutine="1">Save work hours</button></div></div>';
@@ -595,10 +722,26 @@
         '<td><select name="weekday">' + WEEKDAYS.slice(1).map((w, j) => '<option value="' + (j + 1) + '"' + (r.weekday === j + 1 ? ' selected' : '') + '>' + w + '</option>').join('') + '</select></td>' +
         '<td><select name="person">' + A.people.map(p => '<option value="' + esc(p.id) + '"' + (r.person === p.id ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') + '</select></td>' +
         '<td><input type="time" name="start" value="' + esc(r.start) + '" step="900"><input type="time" name="end" value="' + esc(r.end) + '" step="900" style="margin-top:4px"></td>' +
-        '<td><label class="note" style="margin:0">Starts</label><input type="date" name="from" value="' + esc(r.from || '') + '"><label class="note" style="margin:4px 0 0">Ends</label><input type="date" name="until" value="' + esc(r.until || '') + '"></td>' +
+        '<td><label class="note" style="margin:0">Starts</label><input type="date" name="from" value="' + esc(r.from || '') + '"><label class="note" style="margin:4px 0 0">Ends</label><input type="date" name="until" value="' + esc(r.until || '') + '">' +
+        '<label class="check" style="margin-top:4px;font-weight:400"><input type="checkbox" name="overnight"' + (r.overnight ? ' checked' : '') + '> Overnight</label></td>' +
         '<td><button class="small danger" data-delrow="' + i + '" aria-label="Remove">✕</button></td></tr>';
     });
     h += '</table><div class="row" style="margin-top:10px"><button class="small" data-addrow="1">+ Add a day</button><button class="small primary" data-savepattern="1">Save usual week</button></div></div>';
+
+    // Care cards
+    ['sam', 'nixon'].forEach(kind => {
+      h += '<div class="panel settings"><h3>' + (kind === 'sam' ? '🧒 ' + esc(A.settings.child_name) : '🐶 ' + esc(A.settings.dog_name)) + '’s care card</h3><p class="sub">Everyone with a link can read this (Tom, Nanay &amp; Tatay, Nana and anyone you add). Leave a box empty to hide it.</p>';
+      A.cards[kind].forEach(s => { h += '<label>' + esc(s.section) + '</label><textarea data-card-kind="' + kind + '" data-section="' + esc(s.section) + '" rows="2">' + esc(s.text) + '</textarea>'; });
+      h += '<div class="row" style="margin-top:10px"><button class="small primary" data-savecard="' + kind + '">Save care card</button></div></div>';
+    });
+    // Birthdays and anniversaries
+    h += '<div class="panel settings"><h3>Birthdays &amp; anniversaries</h3><p class="sub">Everyone sees these on the day. Put the year in to show the age (or blank the year: e.g. 03-14). Gift ideas are only ever shown to you.</p><table>';
+    (A.birthdays.length ? A.birthdays : []).concat([{ id: '', name: '', date: '', kind: 'birthday', gift: '' }]).forEach(b => {
+      h += '<tr data-bday="' + esc(b.id) + '"><td><input type="text" name="name" value="' + esc(b.name) + '" placeholder="e.g. Nana"></td>' +
+        '<td><input type="text" name="date" value="' + esc(b.date) + '" placeholder="YYYY-MM-DD or MM-DD"><select name="kind" style="margin-top:4px"><option value="birthday">Birthday</option><option value="anniversary"' + (b.kind === 'anniversary' ? ' selected' : '') + '>Anniversary</option></select></td>' +
+        '<td><input type="text" name="gift" value="' + esc(b.gift) + '" placeholder="Gift idea (only you see this)"></td></tr>';
+    });
+    h += '</table><div class="row" style="margin-top:10px"><button class="small primary" data-savebdays="1">Save birthdays</button><span class="sub">The last row is for adding a new one. Clear a name to remove it.</span></div></div>';
 
     h += '<div class="panel settings"><h3>Settings</h3>';
     Object.keys(SETTING_LABELS).forEach(k => {
@@ -617,16 +760,30 @@
         ADMIN = await api('adminSavePerson', KEY, { id: t.dataset.saveperson, name: g('name').value, email: g('email').value, role: g('role').value, active: g('active').checked });
         renderSettings(); toast('Saved.');
       } else if (t.dataset.savepattern) {
-        const rows = [...document.querySelectorAll('tr[data-pat]')].map(tr => { const g = n => tr.querySelector('[name=' + n + ']').value; return { kind: g('kind'), weekday: +g('weekday'), person: g('person'), start: g('start'), end: g('end'), from: g('from'), until: g('until') }; });
+        const rows = [...document.querySelectorAll('tr[data-pat]')].map(tr => { const g = n => tr.querySelector('[name=' + n + ']').value; return { kind: g('kind'), weekday: +g('weekday'), person: g('person'), start: g('start'), end: g('end'), from: g('from'), until: g('until'), overnight: tr.querySelector('[name=overnight]').checked }; });
         ADMIN = await api('adminSavePattern', KEY, rows); renderSettings(); toast('Usual week saved.'); V = null; await loadQuiet();
       } else if (t.dataset.saveroutine) {
-        const rows = [...document.querySelectorAll('tr[data-rt]')].map(tr => { const g = n => tr.querySelector('[name=' + n + ']').value; return { who: g('who'), weekday: +g('weekday'), start: g('start'), end: g('end'), label: g('label') }; });
+        const rows = [...document.querySelectorAll('tr[data-rt]')].map(tr => { const g = n => tr.querySelector('[name=' + n + ']').value; return { who: g('who'), weekday: +g('weekday'), start: g('start'), end: g('end'), label: g('label'), rota: g('rota') }; });
         ADMIN = await api('adminSaveRoutine', KEY, rows); renderSettings(); toast('Work hours saved.'); await loadQuiet();
+      } else if (t.dataset.savecard) {
+        const kind = t.dataset.savecard, secs = [...document.querySelectorAll('[data-card-kind="' + kind + '"]')].map(x => ({ section: x.dataset.section, text: x.value }));
+        ADMIN.cards = await api('adminSaveCard', KEY, kind, secs); toast('Care card saved.'); await loadQuiet();
+      } else if (t.dataset.savebdays) {
+        const rows = [...document.querySelectorAll('tr[data-bday]')].map(tr => { const g = n => tr.querySelector('[name=' + n + ']').value; return { id: tr.dataset.bday, name: g('name'), date: g('date').trim(), kind: g('kind'), gift: g('gift') }; }).filter(r => r.name.trim());
+        ADMIN = await api('adminSaveBirthdays', KEY, rows); renderSettings(); toast('Birthdays saved.'); await loadQuiet();
       } else if (t.dataset.savesettings) {
         const o = {}; document.querySelectorAll('[data-setting]').forEach(i => { o[i.dataset.setting] = i.value; });
         ADMIN = await api('adminSaveSettings', KEY, o); renderSettings(); toast('Settings saved.'); await loadQuiet();
       }
     } catch (e) { toast(e.message); }
+  });
+  // Notes on a plan (people going only, no notifications).
+  document.addEventListener('submit', async ev => {
+    const f = ev.target.closest && ev.target.closest('form.cform'); if (!f) return;
+    ev.preventDefault();
+    const v = f.c.value.trim(); if (!v) return;
+    f.querySelector('button').disabled = true;
+    try { await api('addComment', KEY, f.dataset.cplan, v); await load(FROM); } catch (e) { toast(e.message); f.querySelector('button').disabled = false; }
   });
   // Jump straight to any date (Charlotte and Tom).
   document.addEventListener('change', ev => { if (ev.target.matches && ev.target.matches('[data-jump]') && ev.target.value) load(ev.target.value); });
