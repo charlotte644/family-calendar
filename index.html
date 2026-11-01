@@ -215,7 +215,7 @@
 
   function careLine(kind, d) {
     const list = d[kind], name = kind === 'sam' ? V.child : V.dog, cls = kind === 'sam' ? 'sam' : 'dog';
-    if (!list.length) return '<div class="line"><span class="tag ' + cls + '">' + esc(name) + '</span><span class="what">At home with us</span></div>';
+    if (!list.length) return '<div class="line"><span class="tag ' + cls + '">' + esc(name) + '</span><span class="what">With us</span></div>';
     return list.map(c => {
       const when = c.start ? range(c.s, c.e) : 'all day';
       const who = c.mine ? 'with you' : 'with ' + c.name;
@@ -245,11 +245,13 @@
         (withTxt ? '<br><span class="sub">' + esc(withTxt) + '</span>' : '') + (p.notes ? '<br><span class="sub">' + esc(p.notes) + '</span>' : '') + '</span><span class="acts">' + acts + '</span></div>';
     });
     if (boss()) d.busy.forEach(b => { h += '<div class="line"><span class="tag busy">' + esc(b.s <= 0 && b.e >= 1440 ? 'All day' : range(b.s, b.e)) + '</span><span class="what sub">' + esc(b.t || 'Busy') + '</span></div>'; });
+    (d.work || []).forEach(w => { h += '<div class="line"><span class="tag busy">Day off</span><span class="what sub">' + esc(w.label) + '</span></div>'; });
     h += '</div>';
     if (!d.past || boss()) {
       h += '<div class="dayacts"><button class="small" data-plan="' + d.date + '">+ Plan something' + (boss() ? '' : ' with us') + '</button>' +
         '<button class="small" data-have="sam|' + d.date + '">' + (boss() ? 'Someone’s having ' + esc(V.child) : 'I’ll have ' + esc(V.child)) + '</button>' +
-        '<button class="small" data-have="nixon|' + d.date + '">' + (boss() ? 'Someone’s having ' + esc(V.dog) : 'I’ll have ' + esc(V.dog)) + '</button></div>';
+        '<button class="small" data-have="nixon|' + d.date + '">' + (boss() ? 'Someone’s having ' + esc(V.dog) : 'I’ll have ' + esc(V.dog)) + '</button>' +
+        ((V.workers || []).length ? '<button class="small" data-work="' + d.date + '">' + (V.me.role === 'admin' ? 'Work: leave / overtime' : 'My work: overtime / off') + '</button>' : '') + '</div>';
     }
     return h + '</article>';
   }
@@ -281,7 +283,7 @@
     return '<div class="free-hint" data-hint>' + (f.length ? 'We’re free ' + f.map(w => range(w[0], w[1])).join(', ') + ' that day.' : 'We’re busy all day that day, sorry. Try another day.') + '</div>';
   }
   function peopleBoxes(selected) {
-    return '<label>Who’s it with?</label>' + V.people.map(p => '<label class="check" style="margin-top:4px"><input type="checkbox" name="people" value="' + esc(p.id) + '" ' + (selected.indexOf(p.id) !== -1 ? 'checked' : '') + '> ' + esc(p.name) + '</label>').join('');
+    return '<label>Who’s it with?</label>' + V.people.filter(p => !p.place).map(p => '<label class="check" style="margin-top:4px"><input type="checkbox" name="people" value="' + esc(p.id) + '" ' + (selected.indexOf(p.id) !== -1 ? 'checked' : '') + '> ' + esc(p.name) + '</label>').join('');
   }
 
   function planDialog(date, p) {
@@ -320,6 +322,27 @@
         return boss() ? 'Saved.' : 'Thank you! We’ll get an email to say so.';
       });
     wireAllDay();
+  }
+
+  // Tom: overtime or a day off. Charlotte: annual leave (for herself or Tom).
+  function workDialog(date) {
+    const W = V.workers;
+    openDialog('<h3>Work hours</h3>' +
+      (W.length > 1 ? '<label>Whose?</label><select name="who">' + W.map(w => '<option value="' + esc(w.id) + '">' + esc(w.name) + '</option>').join('') + '</select>' : '<input type="hidden" name="who" value="' + esc(W[0].id) + '">') +
+      '<div class="two"><div><label>From</label><input type="date" name="date" required value="' + esc(date) + '"></div><div><label>To <span class="sub">(if more than one day)</span></label><input type="date" name="dateTo" value=""></div></div>' +
+      '<label class="check"><input type="radio" name="mode" value="hours" checked> Overtime / different hours</label>' +
+      '<div class="two" data-hours><div><label>Start</label><input type="time" name="start" step="900" value="07:00"></div><div><label>Finish</label><input type="time" name="end" step="900" value="18:00"></div></div>' +
+      '<label class="check"><input type="radio" name="mode" value="off"> Not working (annual leave, day off)</label>' +
+      '<label class="check"><input type="radio" name="mode" value="usual"> Back to usual hours</label>' +
+      '<label>Note <span class="sub">(optional, e.g. annual leave)</span></label><input type="text" name="reason" maxlength="40">' +
+      '<p class="sub">Family only ever see “busy” or “free”, never the reason.</p>' +
+      '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">Save</button></div>',
+      async fd => {
+        const r = await api('setWork', KEY, { who: fd.get('who'), date: fd.get('date'), dateTo: fd.get('dateTo'), mode: fd.get('mode'), start: fd.get('start'), end: fd.get('end'), reason: fd.get('reason') });
+        return fd.get('mode') === 'usual' ? 'Back to usual hours.' : 'Saved' + (r.days > 1 ? ' for ' + r.days + ' days.' : '.');
+      });
+    const hours = form.querySelector('[data-hours]');
+    form.querySelectorAll('[name=mode]').forEach(rb => rb.onchange = () => { hours.hidden = form.querySelector('[name=mode]:checked').value !== 'hours'; });
   }
 
   function confirmDialog(title, body, okText, fn) {
@@ -364,6 +387,7 @@
         async () => { await api('cancelPlan', KEY, p.id); return 'Cancelled.'; });
     }
     if (ds.have) { const a = ds.have.split('|'); return haveDialog(a[0], a[1]); }
+    if (ds.work) return workDialog(ds.work);
     if (ds.drop) {
       const a = ds.drop.split('|'), name = a[0] === 'sam' ? V.child : V.dog, label = V.days.find(d => d.date === a[1]).label;
       return confirmDialog('Can’t have ' + name + '?', 'No problem. We’ll take ' + name + ' off ' + esc(label) + (boss() ? '' : ' and we’ll get an email to say so') + '.', { text: 'Yes, take it off', note: true },
@@ -373,8 +397,10 @@
       if (!confirm('Give ' + ds.name + ' a new link? Their old link will stop working straight away.')) return;
       ADMIN = await api('adminNewLink', KEY, ds.newlink); renderSettings(); toast('New link made. Copy it and send it to them.'); return;
     }
-    if (ds.addrow) { ADMIN.pattern.push({ kind: 'sam', weekday: 1, person: (ADMIN.people[0] || {}).id, start: '', end: '' }); renderSettings(); return; }
+    if (ds.addrow) { ADMIN.pattern.push({ kind: 'sam', weekday: 1, person: (ADMIN.people[0] || {}).id, start: '', end: '', from: '', until: '' }); renderSettings(); return; }
     if (ds.delrow) { ADMIN.pattern.splice(+ds.delrow, 1); renderSettings(); return; }
+    if (ds.addwork) { ADMIN.routine.push({ who: 'charlotte', weekday: 1, start: '09:00', end: '17:00', label: '' }); renderSettings(); return; }
+    if (ds.delwork) { ADMIN.routine.splice(+ds.delwork, 1); renderSettings(); return; }
   });
 
   // ---------- Charlotte's settings ----------
@@ -387,21 +413,35 @@
       try { ADMIN = await api('adminGet', KEY); } catch (e) { $('#main').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; return; }
     }
     const A = ADMIN, base = (A.settings.site_url || (location.origin + location.pathname)).replace(/#.*$/, '');
-    let h = '<div class="panel settings"><h3>People with a link</h3><p class="sub">Each person has their own private link. Nobody needs a password. “Sees everything” shows what your busy times are (for Tom).</p><table>';
+    const roles = r => '<select name="role" style="margin-top:6px"><option value="family"' + (r === 'family' ? ' selected' : '') + '>Sees free/busy only</option><option value="full"' + (r === 'full' ? ' selected' : '') + '>Sees everything</option><option value="place"' + (r === 'place' ? ' selected' : '') + '>A place (e.g. kennels), no link</option></select>';
+    let h = '<div class="panel settings"><h3>People with a link</h3><p class="sub">Each person (or couple) has one private link. Nobody needs a password. Put several email addresses separated by commas, e.g. both Nanay’s and Tatay’s: everyone listed gets the updates. “Sees everything” shows what your busy times are (for Tom).</p><table>';
     A.people.forEach(p => {
-      h += '<tr data-person="' + esc(p.id) + '"><td style="min-width:150px"><input type="text" name="name" value="' + esc(p.name) + '"><div class="note">' + (p.active ? '' : '<span class="bad">Link switched off</span>') + '</div></td>' +
-        '<td><input type="email" name="email" value="' + esc(p.email) + '" placeholder="email (for updates)"><select name="role" style="margin-top:6px"><option value="family"' + (p.role === 'family' ? ' selected' : '') + '>Sees free/busy only</option><option value="full"' + (p.role === 'full' ? ' selected' : '') + '>Sees everything</option></select>' +
-        '<label class="check" style="margin-top:6px;font-weight:400"><input type="checkbox" name="active" ' + (p.active ? 'checked' : '') + '> Link works</label></td>' +
-        '<td><div class="row" style="flex-direction:column;align-items:stretch"><button class="small primary" data-saveperson="' + esc(p.id) + '">Save</button><button class="small" data-copy="' + esc(base + '#k=' + p.token) + '">Copy link</button><button class="small" data-newlink="' + esc(p.id) + '" data-name="' + esc(p.name) + '">New link</button></div></td></tr>';
+      const place = p.role === 'place';
+      h += '<tr data-person="' + esc(p.id) + '"><td style="min-width:150px"><input type="text" name="name" value="' + esc(p.name) + '"><div class="note">' + (p.active || place ? '' : '<span class="bad">Link switched off</span>') + '</div></td>' +
+        '<td><input type="text" inputmode="email" name="email" value="' + esc(p.email) + '" placeholder="' + (place ? 'not needed' : 'emails for updates, separated by commas') + '">' + roles(p.role) +
+        '<label class="check" style="margin-top:6px;font-weight:400"' + (place ? ' hidden' : '') + '><input type="checkbox" name="active" ' + (p.active ? 'checked' : '') + '> Link works</label></td>' +
+        '<td><div class="row" style="flex-direction:column;align-items:stretch"><button class="small primary" data-saveperson="' + esc(p.id) + '">Save</button>' +
+        (place ? '' : '<button class="small" data-copy="' + esc(base + '#k=' + p.token) + '">Copy link</button><button class="small" data-newlink="' + esc(p.id) + '" data-name="' + esc(p.name) + '">New link</button>') + '</div></td></tr>';
     });
-    h += '<tr data-person=""><td><input type="text" name="name" placeholder="New person, e.g. Auntie Jo"></td><td><input type="email" name="email" placeholder="email (optional)"><select name="role" style="margin-top:6px"><option value="family">Sees free/busy only</option><option value="full">Sees everything</option></select><input type="checkbox" name="active" checked hidden></td><td><button class="small primary" data-saveperson="">Add</button></td></tr></table></div>';
+    h += '<tr data-person=""><td><input type="text" name="name" placeholder="New person, e.g. Auntie Jo"></td><td><input type="text" inputmode="email" name="email" placeholder="emails (optional), separated by commas">' + roles('family') + '<input type="checkbox" name="active" checked hidden></td><td><button class="small primary" data-saveperson="">Add</button></td></tr></table></div>';
 
-    h += '<div class="panel settings"><h3>Usual week</h3><p class="sub">Who normally has ' + esc(A.settings.child_name) + ' or ' + esc(A.settings.dog_name) + ' each week. Leave the times blank for all day. Family can say “can’t have him this time” for one day without changing this.</p><table>';
+    h += '<div class="panel settings"><h3>Usual work hours</h3><p class="sub">These count as busy every week. Change a single day (overtime, annual leave) with the “Work” button on that day instead.</p><table>';
+    A.routine.forEach((r, i) => {
+      h += '<tr data-rt="' + i + '"><td><select name="who">' + A.workers.map(w => '<option value="' + esc(w.id) + '"' + (r.who === w.id ? ' selected' : '') + '>' + esc(w.name) + '</option>').join('') + '</select></td>' +
+        '<td><select name="weekday">' + WEEKDAYS.slice(1).map((w, j) => '<option value="' + (j + 1) + '"' + (r.weekday === j + 1 ? ' selected' : '') + '>' + w + '</option>').join('') + '</select></td>' +
+        '<td><input type="time" name="start" value="' + esc(r.start) + '" step="900"><input type="time" name="end" value="' + esc(r.end) + '" step="900" style="margin-top:4px"></td>' +
+        '<td><input type="text" name="label" value="' + esc(r.label) + '" placeholder="e.g. Tom at work"></td>' +
+        '<td><button class="small danger" data-delwork="' + i + '" aria-label="Remove">✕</button></td></tr>';
+    });
+    h += '</table><div class="row" style="margin-top:10px"><button class="small" data-addwork="1">+ Add a day</button><button class="small primary" data-saveroutine="1">Save work hours</button></div></div>';
+
+    h += '<div class="panel settings"><h3>Usual week</h3><p class="sub">Who normally has ' + esc(A.settings.child_name) + ' or ' + esc(A.settings.dog_name) + ' each week. Leave the times blank for all day, and the dates blank if there is no start or end. Family can say “can’t have him this time” for one day without changing this.</p><table>';
     A.pattern.forEach((r, i) => {
       h += '<tr data-pat="' + i + '"><td><select name="kind"><option value="sam"' + (r.kind === 'sam' ? ' selected' : '') + '>' + esc(A.settings.child_name) + '</option><option value="nixon"' + (r.kind === 'nixon' ? ' selected' : '') + '>' + esc(A.settings.dog_name) + '</option></select></td>' +
         '<td><select name="weekday">' + WEEKDAYS.slice(1).map((w, j) => '<option value="' + (j + 1) + '"' + (r.weekday === j + 1 ? ' selected' : '') + '>' + w + '</option>').join('') + '</select></td>' +
         '<td><select name="person">' + A.people.map(p => '<option value="' + esc(p.id) + '"' + (r.person === p.id ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') + '</select></td>' +
         '<td><input type="time" name="start" value="' + esc(r.start) + '" step="900"><input type="time" name="end" value="' + esc(r.end) + '" step="900" style="margin-top:4px"></td>' +
+        '<td><label class="note" style="margin:0">Starts</label><input type="date" name="from" value="' + esc(r.from || '') + '"><label class="note" style="margin:4px 0 0">Ends</label><input type="date" name="until" value="' + esc(r.until || '') + '"></td>' +
         '<td><button class="small danger" data-delrow="' + i + '" aria-label="Remove">✕</button></td></tr>';
     });
     h += '</table><div class="row" style="margin-top:10px"><button class="small" data-addrow="1">+ Add a day</button><button class="small primary" data-savepattern="1">Save usual week</button></div></div>';
@@ -423,8 +463,11 @@
         ADMIN = await api('adminSavePerson', KEY, { id: t.dataset.saveperson, name: g('name').value, email: g('email').value, role: g('role').value, active: g('active').checked });
         renderSettings(); toast('Saved.');
       } else if (t.dataset.savepattern) {
-        const rows = [...document.querySelectorAll('tr[data-pat]')].map(tr => { const g = n => tr.querySelector('[name=' + n + ']').value; return { kind: g('kind'), weekday: +g('weekday'), person: g('person'), start: g('start'), end: g('end') }; });
+        const rows = [...document.querySelectorAll('tr[data-pat]')].map(tr => { const g = n => tr.querySelector('[name=' + n + ']').value; return { kind: g('kind'), weekday: +g('weekday'), person: g('person'), start: g('start'), end: g('end'), from: g('from'), until: g('until') }; });
         ADMIN = await api('adminSavePattern', KEY, rows); renderSettings(); toast('Usual week saved.'); V = null; await loadQuiet();
+      } else if (t.dataset.saveroutine) {
+        const rows = [...document.querySelectorAll('tr[data-rt]')].map(tr => { const g = n => tr.querySelector('[name=' + n + ']').value; return { who: g('who'), weekday: +g('weekday'), start: g('start'), end: g('end'), label: g('label') }; });
+        ADMIN = await api('adminSaveRoutine', KEY, rows); renderSettings(); toast('Work hours saved.'); await loadQuiet();
       } else if (t.dataset.savesettings) {
         const o = {}; document.querySelectorAll('[data-setting]').forEach(i => { o[i.dataset.setting] = i.value; });
         ADMIN = await api('adminSaveSettings', KEY, o); renderSettings(); toast('Settings saved.'); await loadQuiet();
@@ -433,8 +476,8 @@
   });
   // Keep the pattern rows in memory while editing, so "+ Add a day" does not lose changes.
   document.addEventListener('change', ev => {
-    const tr = ev.target.closest && ev.target.closest('tr[data-pat]'); if (!tr || !ADMIN) return;
-    const r = ADMIN.pattern[+tr.dataset.pat], n = ev.target.name; if (!r) return;
+    const tr = ev.target.closest && ev.target.closest('tr[data-pat], tr[data-rt]'); if (!tr || !ADMIN) return;
+    const r = tr.dataset.pat !== undefined ? ADMIN.pattern[+tr.dataset.pat] : ADMIN.routine[+tr.dataset.rt], n = ev.target.name; if (!r) return;
     r[n] = n === 'weekday' ? +ev.target.value : ev.target.value;
   });
   async function loadQuiet() { try { V = await api('getView', KEY, FROM); } catch (e) { /* page shows the error next time */ } }
