@@ -50,6 +50,7 @@
   .side-in { padding: 14px 14px 16px; }
   .side-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .side h3 { font-family: Fraunces, Georgia, serif; font-weight: 600; margin: 0; font-size: 1.2rem; }
+  .side-sub { display: flex; justify-content: space-between; align-items: baseline; } .side-sub h4 { margin-bottom: 0; }
   .side h4 { margin: 18px 0 8px; font-size: 0.8rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
   .idea { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin-top: 10px; background: #fffdf9; }
   .idea-t { font-weight: 700; } .idea-t a { color: var(--ink); }
@@ -345,14 +346,32 @@
     return '<div class="side-in"><div class="side-head"><h3>Things to do</h3><button class="small primary" data-new-idea="1">＋ Add</button></div>' +
       '<p class="sub" style="margin-top:0">Only you can see this list.</p>' +
       '<div class="filters">' + [['all', 'All'], ['dog', '🐶 Dog friendly'], ['free', 'Free'], ['dated', 'Has a date']].map(f => '<button class="small' + (IDEA_FILTER === f[0] ? ' on' : '') + '" data-ifilter="' + f[0] + '">' + f[1] + '</button>').join('') + '</div>' +
-      (going.length ? '<h4>We’re going</h4>' + going.map(ideaCard).join('') : '') +
-      '<h4>Ideas</h4>' + (todoList().length ? todoList().map(ideaCard).join('') : '<p class="sub">Nothing here. Add days out, events or places to try.</p>') + '</div>';
+      (going.length ? '<div class="side-sub"><h4>We’re going (' + going.length + ')</h4><button class="link small" data-hidegoing="1">' + (HIDE_GOING ? 'Show' : 'Hide') + '</button></div>' + (HIDE_GOING ? '' : going.map(ideaCard).join('')) : '') +
+      ideasByMonth() + '</div>';
   }
-  let IDEA_FILTER = 'all';
+  let IDEA_FILTER = 'all', HIDE_GOING = false;
+  try { HIDE_GOING = localStorage.getItem('famcal_hidegoing') === '1'; } catch (e) { /* default */ }
+  // Ideas grouped by month for the next 12 months (from a set date, or the first month named in "When"), then "Any time".
+  const MON_RE = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/i;
+  function ideaMonth(i) {
+    if (i.date) return i.date.slice(0, 7);
+    const m = MON_RE.exec(i.when || ''); if (!m) return '';
+    const n = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(m[1].toLowerCase()) + 1;
+    const y = +V.today.slice(0, 4), cur = +V.today.slice(5, 7);
+    return (n >= cur ? y : y + 1) + '-' + pad(n);   // the next time that month comes round
+  }
+  function ideasByMonth() {
+    const list = todoList(), thisMonth = V.today.slice(0, 7), last = addDays(V.today, 365).slice(0, 7), groups = {};
+    list.forEach(i => { let m = ideaMonth(i); if (m && (m < thisMonth || m > last)) m = ''; (groups[m] = groups[m] || []).push(i); });
+    const keys = Object.keys(groups).filter(Boolean).sort();
+    if (!list.length) return '<p class="sub">Nothing here. Add days out, events or places to try.</p>';
+    return keys.map(k => '<h4>' + MONTHS[+k.slice(5) - 1] + ' ' + k.slice(0, 4) + '</h4>' + groups[k].sort((a, b) => (a.date || '9') < (b.date || '9') ? -1 : 1).map(ideaCard).join('')).join('') +
+      (groups[''] ? '<h4>Any time</h4>' + groups[''].map(ideaCard).join('') : '');
+  }
   function todoList() {
-    return (V.ideas || []).filter(i => !i.going).filter(i => IDEA_FILTER === 'all' || (IDEA_FILTER === 'dog' && i.dog === 'yes') ||
-      (IDEA_FILTER === 'free' && /^free/i.test(i.price)) || (IDEA_FILTER === 'dated' && i.date && i.date >= V.today))
-      .sort((a, b) => (a.date && a.date >= V.today ? a.date : '9') < (b.date && b.date >= V.today ? b.date : '9') ? -1 : 1);
+    return (V.ideas || []).filter(i => !i.going && !(i.date && i.date < V.today))   // dated ideas drop off once the day has passed
+      .filter(i => IDEA_FILTER === 'all' || (IDEA_FILTER === 'dog' && i.dog === 'yes') ||
+      (IDEA_FILTER === 'free' && /^free/i.test(i.price)) || (IDEA_FILTER === 'dated' && i.date));
   }
   function ideaDialog(i) {
     i = i || { id: '', title: '', place: '', url: '', price: '', dog: '', notes: '' };
@@ -635,6 +654,7 @@
     if (ds.need) return needDialog();
     if (ds.needdone) { t.disabled = true; try { await api('doneNeed', KEY, ds.needdone); await load(FROM); } catch (e) { toast(e.message); } return; }
     if (ds.ifilter) { IDEA_FILTER = ds.ifilter; render(); return; }
+    if (ds.hidegoing) { HIDE_GOING = !HIDE_GOING; try { localStorage.setItem('famcal_hidegoing', HIDE_GOING ? '1' : '0'); } catch (e) { } render(); return; }
     if (ds.open) {
       const a = ds.open.split('|'); t.disabled = true;
       try { await api('adminSetOpen', KEY, a[0], a[1] === '1'); toast(a[1] === '1' ? 'Everyone can now see it and join.' : 'Now it’s just us.'); await load(FROM); } catch (e) { toast(e.message); }
