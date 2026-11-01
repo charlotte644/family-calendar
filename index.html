@@ -250,7 +250,8 @@
     try { const b = atob(s); let o = ''; for (let i = 0; i < b.length; i++) o += String.fromCharCode(b.charCodeAt(i) ^ KEY.charCodeAt(i % KEY.length)); return o.indexOf('https://charlotte644.github.io/') === 0 ? o : ''; } catch (e) { return ''; }
   }
 
-$1  function render() {
+  // ---------- page ----------
+  function render() {
     document.title = V.title || 'Family Calendar';
     document.querySelector('.wrap').classList.toggle('wide', !!V.ideas && TAB === 'cal');
     $('#title').textContent = V.title || 'Family calendar';
