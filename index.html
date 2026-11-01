@@ -69,7 +69,7 @@
   .hello { color: var(--muted); margin: 0 0 16px; }
   button, .btn { font: inherit; font-weight: 600; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; padding: 7px 14px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
   button:hover, .btn:hover { border-color: var(--brand); }
-  button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  button.primary, .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
   button.small, .btn.small { padding: 4px 11px; font-size: 0.86rem; }
   button.link { border: 0; background: none; padding: 2px 4px; color: var(--brand); text-decoration: underline; font-weight: 600; }
   button.danger { color: var(--danger); }
@@ -246,8 +246,11 @@
     }
   }
 
-  // ---------- page ----------
-  function render() {
+  function unscramble(s) {
+    try { const b = atob(s); let o = ''; for (let i = 0; i < b.length; i++) o += String.fromCharCode(b.charCodeAt(i) ^ KEY.charCodeAt(i % KEY.length)); return o.indexOf('https://charlotte644.github.io/') === 0 ? o : ''; } catch (e) { return ''; }
+  }
+
+$1  function render() {
     document.title = V.title || 'Family Calendar';
     document.querySelector('.wrap').classList.toggle('wide', !!V.ideas && TAB === 'cal');
     $('#title').textContent = V.title || 'Family calendar';
@@ -258,7 +261,9 @@
     let big = V.me.role === 'family';
     try { const s = localStorage.getItem('famcal_big'); if (s !== null) big = s === '1'; } catch (e) { /* default */ }
     document.documentElement.classList.toggle('big', big);
-    let top = '<div class="tools"><button class="small" data-big="1" aria-pressed="' + big + '">' + (big ? 'Smaller text' : 'Bigger text') + '</button>' +
+    // Tom's "Charlotte's Desk" button: the link is scrambled with his own key, so it never sits in this public page as plain text.
+    const desk = V.me.role === 'full' ? unscramble('WRJDQkMCTktaDFNGWFoRRAQPA1AfX1BFWRNVHFlXTgdRBUBYW0ERVUxdUhdaFxpFWlsDR15VUhwMVUNcAVoLAlBKXgJSV1ADRw8=') : '';
+    let top = '<div class="tools">' + (desk ? '<a class="btn small primary" href="' + esc(desk) + '" target="_blank" rel="noopener">📋 Charlotte’s Desk</a>' : '') + '<button class="small" data-big="1" aria-pressed="' + big + '">' + (big ? 'Smaller text' : 'Bigger text') + '</button>' +
       (V.me.role !== 'family' ? '<button class="small" data-card="sam">🧒 ' + esc(V.child) + '’s card</button><button class="small" data-card="nixon">🐶 ' + esc(V.dog) + '’s card</button>' : '') + '</div>';
     if (V.me.role === 'admin') top += '<div class="tabs"><button data-tab="cal" aria-pressed="' + (TAB === 'cal') + '">Calendar</button><button data-tab="set" aria-pressed="' + (TAB === 'set') + '">People &amp; settings</button></div>';
     $('#top').innerHTML = top;
