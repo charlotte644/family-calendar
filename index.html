@@ -38,6 +38,7 @@
   .banner { background: #fdf1d8; border: 1px solid #f0d3a6; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; }
   .banner.soft { background: #fffaf0; }
   .banner.needs { background: var(--free); border-color: #c9e0d5; } .banner.needs ul { margin: 6px 0 0; padding-left: 18px; }
+  .banner.tobook ul { margin: 6px 0 0; padding-left: 18px; } .banner.tobook li { margin-bottom: 4px; }
   .weekcard .asked { background: rgba(255,255,255,.12); border-radius: 10px; padding: 6px 10px; font-size: 0.95rem; }
   .filters { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 2px; }
   .filters button { font-size: 0.75rem; padding: 3px 9px; } .filters button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
@@ -292,6 +293,14 @@
     return '<div class="banner needs"><strong>🛍️ To bring next time</strong><ul>' + V.needs.map(n => '<li>' + esc(n.item) + ' for ' + esc(n.kind === 'nixon' ? V.dog : V.child) +
       ' <span class="sub">(' + esc(n.who) + (n.note ? ': ' + esc(n.note) : '') + ')</span> <button class="link small" data-needdone="' + esc(n.id) + '">Got it ✓</button></li>').join('') + '</ul></div>';
   }
+  // Charlotte only: tickets to buy, tables to book 6–8 weeks ahead, and "Interested" ideas with a date to check
+  function toBookPanel() {
+    if (!(V.toBook || []).length) return '';
+    return '<div class="banner tobook"><strong>🎟️ To book</strong><ul>' + V.toBook.map(o => '<li>' + (o.urgent ? '⚠️ ' : '') + esc(o.text) +
+      ' <span class="sub">(' + esc(o.sub) + ')</span> ' + (o.url ? '<a class="small" href="' + esc(o.url) + '" target="_blank" rel="noopener">Website</a> ' : '') +
+      (o.kind === 'dated' || o.kind === 'check' ? (o.kind === 'dated' ? '<button class="link small" data-go-idea="' + esc(o.id) + '">We’re going</button>' : '<button class="link small" data-edit-idea="' + esc(o.id) + '">Add the date</button>')
+        : (o.kind === 'tbc' ? '<button class="link small" data-goto="' + o.date + '">Move the date</button> ' : '') + '<button class="link small" data-booked="' + esc(o.id) + '">Booked ✓</button>') + '</li>').join('') + '</ul></div>';
+  }
   function needDialog() {
     const opts = { sam: ['Nappies', 'Wipes', 'Nappy cream', 'Spare clothes', 'Snacks', 'Milk', 'Calpol'], nixon: ['Dog food', 'Treats', 'Poo bags'] };
     openDialog('<h3>We need more…</h3><p class="sub">Tick what you’re running low on and we’ll bring it next time.</p>' +
@@ -322,7 +331,7 @@
   }
 
   function renderCalendar() {
-    let h = (V.me.role === 'family' ? weekCard() : '') + needsPanel() + busyBanner() + subscribePanel() + homeScreenHelp();
+    let h = (V.me.role === 'family' ? weekCard() : '') + toBookPanel() + needsPanel() + busyBanner() + subscribePanel() + homeScreenHelp();
     h += '<div class="week"><button data-go="back" ' + (V.canBack ? '' : 'disabled') + ' aria-label="Previous week">‹ Back</button><strong>' + esc(weekTitle(V.from, V.to)) + '</strong><button data-go="next" ' + (V.canForward ? '' : 'disabled') + ' aria-label="Next week">Next ›</button></div>';
     h += '<div class="strip">' + V.days.map(tile).join('') + '</div>';
     h += '<div class="legend"><span><i class="sw free"></i>Free</span><span><i class="sw busy"></i>' + (boss() ? 'Busy' : 'We’re busy') + '</span><span><i class="sw plan"></i>' + (boss() ? 'Plans with family' : 'Plans with you') + '</span>' +
@@ -341,9 +350,17 @@
       (i.place ? '<div class="sub">📍 ' + esc(i.place) + '</div>' : '') + (i.when && !i.going ? '<div class="sub">🗓 ' + esc(i.when) + '</div>' : '') +
       '<div class="chips">' + facts + '</div>' + (i.notes ? '<div class="sub">' + esc(i.notes) + '</div>' : '');
     if (i.going) {
-      h += '<div class="going">✅ Going ' + esc(i.going.label) + '<br><span class="sub">' + (i.going.open ? (i.going.joined.length ? 'Joining: ' + esc(i.going.joined.join(', ')) : 'Open to everyone · nobody has joined yet') : 'Just us') + '</span></div>' +
+      const bk = i.needs === 'table' ? '🍽️ Table' : '🎟️ Tickets';
+      h += '<div class="going">✅ Going ' + esc(i.going.label) + (i.tbc ? ' <span class="chip">date to be confirmed</span>' : '') + '<br><span class="sub">' + (i.going.open ? (i.going.joined.length ? 'Joining: ' + esc(i.going.joined.join(', ')) : 'Open to everyone · nobody has joined yet') : 'Just us') + '</span>' +
+        (i.needs ? '<br><span class="sub">' + bk + ': ' + (i.booked ? 'booked ✓' : i.needs === 'table' ? 'book 6–8 weeks before' : 'not bought yet') + '</span>' : '') + '</div>' +
         '<div class="row"><button class="link small" data-goto="' + i.going.date + '">Show on calendar</button>' +
+        (i.needs && !i.booked ? '<button class="link small" data-booked="' + esc(i.id) + '">Booked ✓</button>' : '') +
         '<button class="link small" data-open="' + esc(i.going.planId) + '|' + (i.going.open ? '0' : '1') + '">' + (i.going.open ? 'Make it just us' : 'Let everyone join') + '</button></div>';
+    } else if (i.status === 'interested') {
+      h += '<div class="row"><button class="small primary" data-go-idea="' + esc(i.id) + '">We’re going</button><button class="link small" data-edit-idea="' + esc(i.id) + '">' + (i.date ? 'Edit' : 'Add the date') + '</button><button class="link small" data-interest="' + esc(i.id) + '|0">Not interested</button></div>';
+    } else if (!i.date) {
+      // No date yet: mark it Interested and it gets flagged once there's a date to book.
+      h += '<div class="row"><button class="small primary" data-interest="' + esc(i.id) + '|1">⭐ Interested</button><button class="link small" data-go-idea="' + esc(i.id) + '">Pick a day</button><button class="link small" data-edit-idea="' + esc(i.id) + '">Edit</button><button class="link small danger" data-rm-idea="' + esc(i.id) + '">Remove</button></div>';
     } else {
       h += '<div class="row"><button class="small primary" data-go-idea="' + esc(i.id) + '">We’re going</button><button class="link small" data-edit-idea="' + esc(i.id) + '">Edit</button><button class="link small danger" data-rm-idea="' + esc(i.id) + '">Remove</button></div>';
     }
@@ -351,6 +368,7 @@
   }
   function ideasPanel() {
     const list = V.ideas || [], going = list.filter(i => i.going).sort((a, b) => a.going.date < b.going.date ? -1 : 1);
+    const keen = list.filter(i => !i.going && i.status === 'interested').sort((a, b) => (ideaMonth(a) || '9') < (ideaMonth(b) || '9') ? -1 : 1);
     const head = '<div class="side-head"><h3>Things to do <span class="sub">(' + todoList().length + ')</span></h3><div class="row">' +
       (HIDE_IDEAS ? '' : '<button class="small primary" data-new-idea="1">＋ Add</button>') +
       '<button class="small" data-hideideas="1" aria-expanded="' + !HIDE_IDEAS + '">' + (HIDE_IDEAS ? 'Show ▾' : 'Hide ▴') + '</button></div></div>';
@@ -359,10 +377,12 @@
       '<p class="sub" style="margin-top:0">Only you can see this list.</p>' +
       '<div class="filters">' + [['all', 'All'], ['dog', '🐶 Dog friendly'], ['free', 'Free'], ['dated', 'Has a date']].map(f => '<button class="small' + (IDEA_FILTER === f[0] ? ' on' : '') + '" data-ifilter="' + f[0] + '">' + f[1] + '</button>').join('') + '</div>' +
       (going.length ? '<div class="side-sub"><h4>We’re going (' + going.length + ')</h4><button class="link small" data-hidegoing="1">' + (HIDE_GOING ? 'Show' : 'Hide') + '</button></div>' + (HIDE_GOING ? '' : going.map(ideaCard).join('')) : '') +
+      (keen.length ? '<div class="side-sub"><h4>⭐ Interested (' + keen.length + ')</h4><button class="link small" data-hidekeen="1">' + (HIDE_KEEN ? 'Show' : 'Hide') + '</button></div>' +
+        (HIDE_KEEN ? '' : '<p class="sub" style="margin-top:0">Waiting for dates. They move to “To book” at the top once there’s a date or the month is close.</p>' + keen.map(ideaCard).join('')) : '') +
       ideasByMonth() + '</div>';
   }
-  let IDEA_FILTER = 'all', HIDE_GOING = false;
-  try { HIDE_GOING = localStorage.getItem('famcal_hidegoing') === '1'; } catch (e) { /* default */ }
+  let IDEA_FILTER = 'all', HIDE_GOING = false, HIDE_KEEN = false;
+  try { HIDE_GOING = localStorage.getItem('famcal_hidegoing') === '1'; HIDE_KEEN = localStorage.getItem('famcal_hidekeen') === '1'; } catch (e) { /* default */ }
   // The whole panel folds to one line. On a phone it starts folded so the calendar comes first; the choice is remembered per device.
   let HIDE_IDEAS = window.innerWidth < 960;
   try { const s = localStorage.getItem('famcal_hideideas'); if (s !== null) HIDE_IDEAS = s === '1'; } catch (e) { /* default */ }
@@ -384,7 +404,7 @@
       (groups[''] ? '<h4>Any time</h4>' + groups[''].map(ideaCard).join('') : '');
   }
   function todoList() {
-    return (V.ideas || []).filter(i => !i.going && !(i.date && i.date < V.today))   // dated ideas drop off once the day has passed
+    return (V.ideas || []).filter(i => !i.going && i.status !== 'interested' && !(i.date && i.date < V.today))   // dated ideas drop off once the day has passed
       .filter(i => IDEA_FILTER === 'all' || (IDEA_FILTER === 'dog' && i.dog === 'yes') ||
       (IDEA_FILTER === 'free' && /^free/i.test(i.price)) || (IDEA_FILTER === 'dated' && i.date));
   }
@@ -398,9 +418,11 @@
       '<label>Website <span class="sub">(optional)</span></label><input type="text" name="url" maxlength="300" value="' + esc(i.url) + '" placeholder="https://…">' +
       '<label>When <span class="sub">(optional, e.g. “Weekends in December” or “Spring”)</span></label><input type="text" name="when" maxlength="120" value="' + esc(i.when || '') + '">' +
       '<label>A particular day? <span class="sub">(optional)</span></label><input type="date" name="date" value="' + esc(i.date || '') + '">' +
+      '<label>Needs booking?</label><select name="book">' + [['', 'Work it out for me'], ['tickets', 'Tickets'], ['table', 'A table (remind me 6–8 weeks before)'], ['none', 'No booking needed']]
+        .map(o => '<option value="' + o[0] + '"' + ((i.book || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' +
       '<label>Notes <span class="sub">(optional)</span></label><textarea name="notes" maxlength="600">' + esc(i.notes) + '</textarea>' +
       '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">Save</button></div>',
-      async fd => { await api('adminSaveIdea', KEY, { id: i.id, title: fd.get('title'), place: fd.get('place'), price: fd.get('price'), dog: fd.get('dog'), url: fd.get('url'), notes: fd.get('notes'), when: fd.get('when'), date: fd.get('date'), start: i.start || '', end: i.end || '' }); return 'Saved.'; });
+      async fd => { await api('adminSaveIdea', KEY, { id: i.id, title: fd.get('title'), place: fd.get('place'), price: fd.get('price'), dog: fd.get('dog'), url: fd.get('url'), notes: fd.get('notes'), when: fd.get('when'), date: fd.get('date'), book: fd.get('book'), start: i.start || '', end: i.end || '' }); return 'Saved.'; });
   }
   function goDialog(i) {
     openDialog('<h3>We’re going: ' + esc(i.title) + '</h3>' +
@@ -671,6 +693,17 @@
     if (ds.ifilter) { IDEA_FILTER = ds.ifilter; render(); return; }
     if (ds.hideideas) { HIDE_IDEAS = !HIDE_IDEAS; try { localStorage.setItem('famcal_hideideas', HIDE_IDEAS ? '1' : '0'); } catch (e) { } render(); return; }
     if (ds.hidegoing) { HIDE_GOING = !HIDE_GOING; try { localStorage.setItem('famcal_hidegoing', HIDE_GOING ? '1' : '0'); } catch (e) { } render(); return; }
+    if (ds.hidekeen) { HIDE_KEEN = !HIDE_KEEN; try { localStorage.setItem('famcal_hidekeen', HIDE_KEEN ? '1' : '0'); } catch (e) { } render(); return; }
+    if (ds.interest) {
+      const a = ds.interest.split('|'); t.disabled = true;
+      try { await api('adminInterested', KEY, a[0], a[1] === '1'); toast(a[1] === '1' ? 'Added to Interested. You’ll be reminded when it’s time to look for dates.' : 'Back on the main list.'); await load(FROM); } catch (e) { toast(e.message); t.disabled = false; }
+      return;
+    }
+    if (ds.booked) {
+      t.disabled = true;
+      try { await api('adminBooked', KEY, ds.booked); toast('Ticked off.'); await load(FROM); } catch (e) { toast(e.message); t.disabled = false; }
+      return;
+    }
     if (ds.open) {
       const a = ds.open.split('|'); t.disabled = true;
       try { await api('adminSetOpen', KEY, a[0], a[1] === '1'); toast(a[1] === '1' ? 'Everyone can now see it and join.' : 'Now it’s just us.'); await load(FROM); } catch (e) { toast(e.message); }
