@@ -298,7 +298,7 @@
     if (!(V.toBook || []).length) return '';
     return '<div class="banner tobook"><strong>🎟️ To book</strong><ul>' + V.toBook.map(o => '<li>' + (o.urgent ? '⚠️ ' : '') + esc(o.text) +
       ' <span class="sub">(' + esc(o.sub) + ')</span> ' + (o.url ? '<a class="small" href="' + esc(o.url) + '" target="_blank" rel="noopener">Website</a> ' : '') +
-      (o.kind === 'dated' || o.kind === 'check' ? (o.kind === 'dated' ? '<button class="link small" data-go-idea="' + esc(o.id) + '">We’re going</button>' : '<button class="link small" data-edit-idea="' + esc(o.id) + '">Add the date</button>')
+      (o.kind === 'birthday' ? '' : o.kind === 'dated' || o.kind === 'check' ? (o.kind === 'dated' ? '<button class="link small" data-go-idea="' + esc(o.id) + '">We’re going</button>' : '<button class="link small" data-edit-idea="' + esc(o.id) + '">Add the date</button>')
         : (o.kind === 'tbc' ? '<button class="link small" data-goto="' + o.date + '">Move the date</button> ' : '') + '<button class="link small" data-booked="' + esc(o.id) + '">Booked ✓</button>') + '</li>').join('') + '</ul></div>';
   }
   function needDialog() {

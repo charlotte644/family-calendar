@@ -67,11 +67,14 @@
     getEvents(a, b) { return this.events.filter(e => e.start < b && e.end > a); },
     createEvent(t, s, e, o) { const ev = new Ev(this, t, s, e, false, o); this.events.push(ev); return ev; },
     createAllDayEvent(t, d, o) { const ev = new Ev(this, t, d, new Date(d.getTime() + 86400000), true, o); this.events.push(ev); return ev; },
-    getEventById(id) { return this.events.filter(e => e.id === id)[0] || null; }
+    getEventById(id) { return this.events.filter(e => e.id === id)[0] || null; },
+    // Yearly series: the fake keeps one event, moved to this year so it shows in the preview
+    createAllDayEventSeries(t, d, rec, o) { const y = new Date(d); y.setFullYear(new Date().getFullYear()); const ev = this.createAllDayEvent(t, y, o); ev.deleteEventSeries = ev.deleteEvent; return ev; },
+    getEventSeriesById(id) { return this.getEventById(id); }
   };
   const cals = { primary: new Cal('lottewarren95@gmail.com', 'Charlotte Warren'), 'cwa@hereslaw.co.uk': new Cal('cwa@hereslaw.co.uk', 'cwa@hereslaw.co.uk'), 'office@hammer-and-pen.com': new Cal('office@hammer-and-pen.com', 'Hammer & Pen office') };
   window.CalendarApp = {
-    GuestStatus: { NO: 'NO' }, EventColor: { GRAY: '8' },
+    GuestStatus: { NO: 'NO' }, EventColor: { GRAY: '8' }, newRecurrence: () => ({ addYearlyRule() { return this; } }),
     getDefaultCalendar: () => cals.primary,
     getCalendarById: id => cals[id] || null
   };
