@@ -472,8 +472,7 @@
           ? '<p>✅ <strong>' + esc(f.who) + '’s calendar is linked</strong> <button class="link small danger" data-feedoff="' + esc(f.who) + '">Stop sharing</button></p>'
           : '<label>' + esc(f.who) + '’s calendar link</label><div class="row"><input type="url" data-feedurl="' + esc(f.who) + '" placeholder="Paste the link here"><button class="primary" data-feedsave="' + esc(f.who) + '">Save</button></div>').join('') + '</details>';
     }
-    if (L.linked) return '<details class="panel"><summary>✅ Your calendar is linked</summary><p class="sub">Charlotte and Tom can see when you’re busy. Nobody else can see it.</p>' +
-      '<p class="sub">They only see what you’re doing if you choose to show them. To do that: open calendar.google.com in Chrome, tick Desktop site in the ⋮ menu, tap the ⚙ cog, then Settings, tap your name, and next to ' + esc(L.shareWith) + ' choose <strong>See all event details</strong>. You can change it back the same way.</p>' +
+    if (L.linked) return '<details class="panel"><summary>✅ Your calendar is linked</summary><p class="sub">Charlotte and Tom can see when you’re busy, but never what you’re doing. Nobody else can see it.</p>' +
       '<button class="link small danger" data-linkcal="0">Stop sharing my calendar</button></details>';
     return '<details class="panel"><summary>📅 Link your calendar to ours</summary>' +
       '<p>This lets Charlotte and Tom see when you’re busy, just as you can see when they are. They’ll only see “busy”, never what you’re doing.</p><ol>' +
@@ -564,7 +563,7 @@
         b.id && !d.past ? '<button class="link small" data-share="' + esc(b.id) + '" data-title="' + esc(b.t) + '">Share with family</button>' : ''); });
       notes.forEach(b => { h += line('🗒', 'busy', '<span class="sub">' + esc(b.t) + ' <span class="when">· ' + esc(whenB(b)) + ', note only (not busy)</span></span>', ''); });
       if (!d.past) (d.others || []).forEach(o => {
-        const cal = o.unread ? 'can’t read their calendar right now' : o.items ? o.items.map(i => esc(i.t || 'Busy') + ' ' + esc(whenB(i))).join(', ') : o.busy.length ? 'busy ' + o.busy.map(b => esc(whenB(b))).join(', ') : 'free all day';
+        const cal = o.unread ? 'can’t read their calendar right now' : o.busy.length ? 'busy ' + o.busy.map(b => esc(whenB(b))).join(', ') : 'free all day';
         const shown = o.notFree ? '<strong>not free</strong> (marked by ' + esc(o.notFree) + ')' + (o.busy.length ? ' · ' + cal : '') : cal;
         h += line('👤', 'busy', '<span class="sub">' + esc(o.name) + ': ' + shown + '</span>',
           o.id ? '<button class="link small" data-notfree="' + esc(o.id) + '|' + d.date + '|' + (o.notFree ? '0">Undo' : '1">Not free') + '</button>' : '');
