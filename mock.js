@@ -76,7 +76,9 @@
   window.CalendarApp = {
     GuestStatus: { NO: 'NO' }, EventColor: { GRAY: '8' }, newRecurrence: () => ({ addYearlyRule() { return this; } }),
     getDefaultCalendar: () => cals.primary,
-    getCalendarById: id => cals[id] || null
+    getCalendarById: id => cals[id] || null,
+    // The fake treats every gmail address as already shared with us
+    subscribeToCalendar: id => { if (!/@gmail\./.test(id)) throw new Error('Calendar not found'); return (cals[id] = cals[id] || new Cal(id, id)); }
   };
 
   // ---------- the rest ----------

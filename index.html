@@ -283,7 +283,8 @@
       d.plans.filter(p => p.canJoin).forEach(p => mine.push('<li><strong>' + esc(day) + '</strong>: ' + esc(p.title) + ' — everyone’s welcome <button class="small primary" data-join="' + esc(p.id) + '">Join us</button></li>'));
     });
     const asked = (V.needs || []).length ? '<p class="asked">You’ve asked us to bring: ' + V.needs.map(n => esc(n.item)).join(', ') + '</p>' : '';
-    return '<section class="weekcard"><h2>Your week</h2>' + (mine.length ? '<ul>' + mine.join('') + '</ul>' : '<p>Nothing booked with us this week.</p>') + asked +
+    const later = V.from > addDays(V.today, 6);   // she has jumped ahead to another week
+    return '<section class="weekcard"><h2>' + (later ? esc(weekTitle(V.from, V.to)) : 'Your week') + '</h2>' + (mine.length ? '<ul>' + mine.join('') + '</ul>' : '<p>Nothing booked with us ' + (later ? 'that' : 'this') + ' week.</p>') + asked +
       '<div class="row"><button data-card="sam">🧒 ' + esc(V.child) + '’s care card</button><button data-card="nixon">🐶 ' + esc(V.dog) + '’s care card</button>' +
       '<button data-need="1">🛍️ We need more…</button></div></section>';
   }
@@ -331,12 +332,12 @@
   }
 
   function renderCalendar() {
-    let h = (V.me.role === 'family' ? weekCard() : '') + toBookPanel() + needsPanel() + busyBanner() + subscribePanel() + homeScreenHelp();
+    let h = (V.me.role === 'family' ? weekCard() : '') + toBookPanel() + needsPanel() + busyBanner() + linkPanel() + subscribePanel() + homeScreenHelp();
     h += '<div class="week"><button data-go="back" ' + (V.canBack ? '' : 'disabled') + ' aria-label="Previous week">‹ Back</button><strong>' + esc(weekTitle(V.from, V.to)) + '</strong><button data-go="next" ' + (V.canForward ? '' : 'disabled') + ' aria-label="Next week">Next ›</button></div>';
     h += '<div class="strip">' + V.days.map(tile).join('') + '</div>';
     h += '<div class="legend"><span><i class="sw free"></i>Free</span><span><i class="sw busy"></i>' + (boss() ? 'Busy' : 'We’re busy') + '</span><span><i class="sw plan"></i>' + (boss() ? 'Plans with family' : 'Plans with you') + '</span>' +
       (V.from !== V.today ? '<button class="link small" data-go="today">Back to today</button>' : '') + '</div>';
-    if (boss()) h += '<div class="jump"><label for="jump">Jump to a date</label><input type="date" id="jump" data-jump min="' + addDays(V.today, -28) + '" max="' + esc(V.lastDay) + '" value="' + V.from + '"></div>';
+    if (V.canJump) h += '<div class="jump"><label for="jump">Jump to a date</label><input type="date" id="jump" data-jump min="' + addDays(V.today, -28) + '" max="' + esc(V.lastDay) + '" value="' + V.from + '"></div>';
     V.days.forEach(d => { h += dayCard(d); });
     if (V.ideas) h = '<div class="layout"><div class="cal">' + h + '</div><aside class="side">' + ideasPanel() + '</aside></div>';
     $('#main').innerHTML = h;
@@ -453,6 +454,22 @@
       '<span class="wd">' + p.wd + '</span><span class="num">' + p.num + '</span><span class="st"><span class="lg">' + esc(st.short) + '</span><span class="sm">' + esc(st.tiny) + '</span></span><span class="ic">' + away('sam') + away('nixon') + (d.plans.length ? '📅' : '') + '</span></a>';
   }
 
+  // Family who can link their own calendar, so Charlotte and Tom can see when they're busy
+  function linkPanel() {
+    const L = V.link;
+    if (!L) return '';
+    if (L.linked) return '<details class="panel"><summary>✅ Your calendar is linked</summary><p class="sub">Charlotte and Tom can see when you’re busy, but never what you’re doing. Nobody else can see it.</p>' +
+      '<button class="link small danger" data-linkcal="0">Stop sharing my calendar</button></details>';
+    return '<details class="panel"><summary>📅 Link your calendar to ours</summary>' +
+      '<p>This lets Charlotte and Tom see when you’re busy, just as you can see when they are. They’ll only see “busy”, never what you’re doing.</p><ol>' +
+      '<li>Open Chrome and go to <a href="https://calendar.google.com" target="_blank" rel="noopener">calendar.google.com</a>' + (L.account ? ', signed in as ' + esc(L.account) : '') + '.</li>' +
+      '<li>Tap the ⋮ menu (top right) and tick <strong>Desktop site</strong>.</li>' +
+      '<li>Tap the ⚙ cog, then <strong>Settings</strong>.</li>' +
+      '<li>On the left, under “Settings for my calendars”, tap your name.</li>' +
+      '<li>Under “Share with specific people”, tap <strong>Add people</strong>.</li>' +
+      '<li>Type <strong>' + esc(L.shareWith) + '</strong>, choose <strong>See only free/busy (hide details)</strong>, then tap <strong>Send</strong>.</li></ol>' +
+      '<button class="primary" data-linkcal="1">I’ve done it</button></details>';
+  }
   function subscribePanel() {
     if (DEMO) return '<details class="panel"><summary>Put this on your own calendar</summary><p class="sub">Once the page is live, this gives you a link your phone’s calendar keeps up to date by itself.</p></details>';
     const feed = URL_ + '?feed=' + encodeURIComponent(KEY), web = feed.replace(/^https:/, 'webcal:');
@@ -531,6 +548,7 @@
       other.forEach(b => { h += line('•', 'busy', '<span class="sub">' + esc(b.t || 'Busy') + ' <span class="when">· ' + esc(whenB(b)) + '</span></span>',
         b.id && !d.past ? '<button class="link small" data-share="' + esc(b.id) + '" data-title="' + esc(b.t) + '">Share with family</button>' : ''); });
       notes.forEach(b => { h += line('🗒', 'busy', '<span class="sub">' + esc(b.t) + ' <span class="when">· ' + esc(whenB(b)) + ', note only (not busy)</span></span>', ''); });
+      if (!d.past) (d.others || []).forEach(o => { h += line('👤', 'busy', '<span class="sub">' + esc(o.name) + ': ' + (o.busy.length ? 'busy ' + o.busy.map(b => esc(whenB(b))).join(', ') : 'free all day') + '</span>', ''); });
     }
     h += '</div>';
     if (!d.past || boss()) {
@@ -693,6 +711,20 @@
     if (ds.ifilter) { IDEA_FILTER = ds.ifilter; render(); return; }
     if (ds.hideideas) { HIDE_IDEAS = !HIDE_IDEAS; try { localStorage.setItem('famcal_hideideas', HIDE_IDEAS ? '1' : '0'); } catch (e) { } render(); return; }
     if (ds.hidegoing) { HIDE_GOING = !HIDE_GOING; try { localStorage.setItem('famcal_hidegoing', HIDE_GOING ? '1' : '0'); } catch (e) { } render(); return; }
+    if (ds.linkcal) {
+      const on = ds.linkcal === '1'; t.disabled = true;
+      try {
+        const r = await api('linkMyCalendar', KEY, on);
+        toast(!on ? 'Stopped. To finish, you can also remove us in your Google Calendar settings.' : r.linked ? 'Linked, thank you!' : 'We can’t see it yet. It can take a few minutes, so try again shortly.');
+        await load(FROM);
+      } catch (e) { toast(e.message); t.disabled = false; }
+      return;
+    }
+    if (ds.checkcals) {
+      t.disabled = true;
+      try { ADMIN = await api('adminCheckCalendars', KEY); renderSettings(); } catch (e) { toast(e.message); t.disabled = false; }
+      return;
+    }
     if (ds.hidekeen) { HIDE_KEEN = !HIDE_KEEN; try { localStorage.setItem('famcal_hidekeen', HIDE_KEEN ? '1' : '0'); } catch (e) { } render(); return; }
     if (ds.interest) {
       const a = ds.interest.split('|'); t.disabled = true;
@@ -768,7 +800,8 @@
       const place = p.role === 'place';
       h += '<tr data-person="' + esc(p.id) + '"><td style="min-width:150px"><input type="text" name="name" value="' + esc(p.name) + '"><div class="note">' + (p.active || place ? '' : '<span class="bad">Link switched off</span>') + '</div></td>' +
         '<td><input type="text" inputmode="email" name="email" value="' + esc(p.email) + '" placeholder="' + (place ? 'not needed' : 'emails for updates, separated by commas') + '">' + roles(p.role) +
-        '<label class="check" style="margin-top:6px;font-weight:400"' + (place ? ' hidden' : '') + '><input type="checkbox" name="active" ' + (p.active ? 'checked' : '') + '> Link works</label></td>' +
+        '<label class="check" style="margin-top:6px;font-weight:400"' + (place ? ' hidden' : '') + '><input type="checkbox" name="active" ' + (p.active ? 'checked' : '') + '> Link works</label>' +
+        (p.canLink ? '<div class="note">' + (p.calendar ? '✅ Calendar linked' : 'Calendar not linked yet <button class="link small" data-checkcals="1">Check now</button>') + '</div>' : '') + '</td>' +
         '<td><div class="row" style="flex-direction:column;align-items:stretch"><button class="small primary" data-saveperson="' + esc(p.id) + '">Save</button>' +
         (place ? '' : '<button class="small" data-copy="' + esc(base + '#k=' + p.token) + '">Copy link</button><button class="small" data-newlink="' + esc(p.id) + '" data-name="' + esc(p.name) + '">New link</button>') + '</div></td></tr>';
     });
