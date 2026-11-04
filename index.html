@@ -458,6 +458,20 @@
   function linkPanel() {
     const L = V.link;
     if (!L) return '';
+    if (L.feeds) {
+      const done = L.feeds.filter(f => f.linked).length;
+      return '<details class="panel"><summary>' + (done === L.feeds.length ? '✅ Your calendars are linked' : '📅 Share your calendars with us') + '</summary>' +
+        '<p>This lets Charlotte and Tom see when you’re busy. They’ll only see the times, never what you’re doing, and nobody else in the family can see them.</p>' +
+        '<p><strong>On your iPhone</strong></p><ol>' +
+        '<li>Open the <strong>Calendar</strong> app and tap <strong>Calendars</strong> at the bottom.</li>' +
+        '<li>Tap the ⓘ next to your calendar.</li>' +
+        '<li>Switch on <strong>Public Calendar</strong>, tap <strong>Share Link…</strong>, then <strong>Copy</strong>.</li>' +
+        '<li>Come back here, paste it in your box below and tap <strong>Save</strong>.</li></ol>' +
+        '<p class="sub">Despite the name, nobody can find it unless they have the link, so please only paste it here. If you can’t see Public Calendar, ask Charlotte.</p>' +
+        L.feeds.map(f => f.linked
+          ? '<p>✅ <strong>' + esc(f.who) + '’s calendar is linked</strong> <button class="link small danger" data-feedoff="' + esc(f.who) + '">Stop sharing</button></p>'
+          : '<label>' + esc(f.who) + '’s calendar link</label><div class="row"><input type="url" data-feedurl="' + esc(f.who) + '" placeholder="Paste the link here"><button class="primary" data-feedsave="' + esc(f.who) + '">Save</button></div>').join('') + '</details>';
+    }
     if (L.linked) return '<details class="panel"><summary>✅ Your calendar is linked</summary><p class="sub">Charlotte and Tom can see when you’re busy, but never what you’re doing. Nobody else can see it.</p>' +
       '<button class="link small danger" data-linkcal="0">Stop sharing my calendar</button></details>';
     return '<details class="panel"><summary>📅 Link your calendar to ours</summary>' +
@@ -548,7 +562,7 @@
       other.forEach(b => { h += line('•', 'busy', '<span class="sub">' + esc(b.t || 'Busy') + ' <span class="when">· ' + esc(whenB(b)) + '</span></span>',
         b.id && !d.past ? '<button class="link small" data-share="' + esc(b.id) + '" data-title="' + esc(b.t) + '">Share with family</button>' : ''); });
       notes.forEach(b => { h += line('🗒', 'busy', '<span class="sub">' + esc(b.t) + ' <span class="when">· ' + esc(whenB(b)) + ', note only (not busy)</span></span>', ''); });
-      if (!d.past) (d.others || []).forEach(o => { h += line('👤', 'busy', '<span class="sub">' + esc(o.name) + ': ' + (o.busy.length ? 'busy ' + o.busy.map(b => esc(whenB(b))).join(', ') : 'free all day') + '</span>', ''); });
+      if (!d.past) (d.others || []).forEach(o => { h += line('👤', 'busy', '<span class="sub">' + esc(o.name) + ': ' + (o.unread ? 'can’t read their calendar right now' : o.busy.length ? 'busy ' + o.busy.map(b => esc(whenB(b))).join(', ') : 'free all day') + '</span>', ''); });
     }
     h += '</div>';
     if (!d.past || boss()) {
@@ -720,6 +734,14 @@
       } catch (e) { toast(e.message); t.disabled = false; }
       return;
     }
+    if (ds.feedsave || ds.feedoff) {
+      const who = ds.feedsave || ds.feedoff, box = ds.feedsave ? [...document.querySelectorAll('[data-feedurl]')].find(i => i.dataset.feedurl === who) : null;
+      if (box && !box.value.trim()) return toast('Please paste the link first.');
+      t.disabled = true;
+      try { await api('saveMyCalendarFeed', KEY, who, box ? box.value : ''); toast(box ? 'Linked, thank you!' : 'Stopped. You can also switch off Public Calendar on your iPhone.'); await load(FROM); }
+      catch (e) { toast(e.message); t.disabled = false; }
+      return;
+    }
     if (ds.checkcals) {
       t.disabled = true;
       try { ADMIN = await api('adminCheckCalendars', KEY); renderSettings(); } catch (e) { toast(e.message); t.disabled = false; }
@@ -801,6 +823,7 @@
       h += '<tr data-person="' + esc(p.id) + '"><td style="min-width:150px"><input type="text" name="name" value="' + esc(p.name) + '"><div class="note">' + (p.active || place ? '' : '<span class="bad">Link switched off</span>') + '</div></td>' +
         '<td><input type="text" inputmode="email" name="email" value="' + esc(p.email) + '" placeholder="' + (place ? 'not needed' : 'emails for updates, separated by commas') + '">' + roles(p.role) +
         '<label class="check" style="margin-top:6px;font-weight:400"' + (place ? ' hidden' : '') + '><input type="checkbox" name="active" ' + (p.active ? 'checked' : '') + '> Link works</label>' +
+        (p.feeds || []).map(f => '<div class="note">' + (f.linked ? '✅ ' + esc(f.who) + '’s calendar linked' : esc(f.who) + '’s calendar not linked yet') + '</div>').join('') +
         (p.canLink ? '<div class="note">' + (p.calendar ? '✅ Calendar linked' : 'Calendar not linked yet <button class="link small" data-checkcals="1">Check now</button>') + '</div>' : '') + '</td>' +
         '<td><div class="row" style="flex-direction:column;align-items:stretch"><button class="small primary" data-saveperson="' + esc(p.id) + '">Save</button>' +
         (place ? '' : '<button class="small" data-copy="' + esc(base + '#k=' + p.token) + '">Copy link</button><button class="small" data-newlink="' + esc(p.id) + '" data-name="' + esc(p.name) + '">New link</button>') + '</div></td></tr>';

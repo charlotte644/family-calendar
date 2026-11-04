@@ -83,7 +83,10 @@
 
   // ---------- the rest ----------
   const store = {};
-  window.CacheService = { getScriptCache: () => ({ get: () => null, put: () => {} }) };
+  // A calendar link in the preview: window.FAKE_ICS[url] holds the file
+  window.FAKE_ICS = {};
+  window.UrlFetchApp = { fetch: url => { const t = window.FAKE_ICS[url]; return { getResponseCode: () => (t ? 200 : 404), getContentText: () => t || '' }; } };
+  window.CacheService ={ getScriptCache: () => ({ get: () => null, put: () => {} }) };
   window.LockService = { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) };
   window.FAMCAL_SENT = [];
   window.MailApp = { sendEmail: o => { window.FAMCAL_SENT.push(o); console.log('[preview email] to ' + o.to + ': ' + o.subject); }, getRemainingDailyQuota: () => 100 };
