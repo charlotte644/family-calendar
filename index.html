@@ -412,7 +412,7 @@
   }
   function filterBar() {
     const opts = boss() ? [['', 'Everyone'], ['charlotte', 'Charlotte'], ['tom', 'Tom'], ['sam', V.child], ['nixon', V.dog], ['plans', 'Plans with family']]
-        .concat(V.people.filter(p => !p.place && p.id !== 'tom').map(p => [p.id, p.name]))
+        .concat(V.people.filter(p => !p.place && p.id !== 'tom').map(p => [p.id, p.name])).concat(extraPeople())
       : [['', 'Everyone'], ['us', V.us], ['sam', V.child], ['nixon', V.dog], ['plans', 'Plans with us'], ['own', 'My own plans']];
     return '<div class="filters fbar"><span class="sub">Show:</span>' + opts.map(o => '<button class="small' + (FILTER === o[0] ? ' on' : '') + '" data-filter="' + esc(o[0]) + '">' + esc(o[1]) + '</button>').join('') + '</div>';
   }
@@ -436,14 +436,16 @@
     openDialog('<h3>Instructions</h3>' + linkPanel() + subscribePanel() + homeScreenHelp() + '<div class="dlgacts"><button type="button" data-close>Close</button></div>', async () => '');
     form.querySelectorAll('button:not([type])').forEach(b => { b.type = 'button'; });
   }
-  const COL = { charlotte: '#7b4fb8', tom: '#2f73c4', sam: '#c9860c', nixon: '#b8562a', tomsmum: '#2e8f5b', mumdad: '#c7407e', busy: '#9a948a', other: '#5f7f8c' };
+  const COL = { charlotte: '#7b4fb8', tom: '#2f73c4', sam: '#c9860c', nixon: '#b8562a', tomsmum: '#2e8f5b', mumdad: '#c7407e', eli: '#14898a', busy: '#9a948a', other: '#5f7f8c' };
+  // people who appear on our days without a link of their own (e.g. Eli's school times)
+  const extraPeople = () => { const seen = {}; V.days.forEach(d => (d.others || []).forEach(o => { if (o.id && !V.people.some(p => p.id === o.id)) seen[o.id] = o.name; })); return Object.keys(seen).map(id => [id, seen[id]]); };
   const colOf = id => COL[id] || COL.other;
   const idOfName = n => { const p = V.people.find(x => x.name === n); return p ? p.id : /^(Nanay|Tatay)$/.test(n) ? 'mumdad' : ''; };
   // a family plan takes the colour of the family member in it; just us is Charlotte's colour
   const planCol = p => boss() ? colOf((p.people || []).find(id => id !== 'charlotte' && id !== 'tom') || 'charlotte') : colOf('charlotte');
   function weekLegend() {
     const keys = boss() ? [['charlotte', 'Charlotte (solid = work, pale = social)'], ['tom', 'Tom (stripe = at work)'], ['sam', V.child], ['nixon', V.dog]]
-        .concat(V.people.filter(p => !p.place && p.id !== 'tom').map(p => [p.id, p.name]))
+        .concat(V.people.filter(p => !p.place && p.id !== 'tom').map(p => [p.id, p.name])).concat(extraPeople())
       : [['busy', V.us + ' busy'], ['charlotte', 'Plans with us'], [V.me.id, 'Your own plans'], ['sam', V.child], ['nixon', V.dog]];
     return '<div class="legend wk-legend">' + keys.map(k => '<span><i style="--c:' + colOf(k[0]) + '"></i>' + esc(k[1]) + '</span>').join('') + '</div>';
   }
@@ -453,7 +455,7 @@
     const shown = o => !FILTER || o.k === '*' || o.k === FILTER || (o.ks || []).indexOf(FILTER) !== -1;
     const add = (s, e, label, col, o) => {
       o = o || {}; if (!shown(o)) return;
-      const x = { s: s, e: e, label: label, col: col, soft: !!o.soft, attrs: o.attrs || '' }; (o.allDay || (s <= 0 && e >= 1440) ? all : it).push(x);
+      const x = { s: s, e: e, label: label, col: col, soft: !!o.soft, attrs: o.attrs || '', fit: !!o.fit }; (o.allDay || (s <= 0 && e >= 1440) ? all : it).push(x);
     };
     const bar = o => { if (shown(o)) bars.push(o); };
     if (d.bankHoliday) add(0, 1440, '🏖️ Bank holiday', COL.busy, { soft: true, k: '*' });
@@ -471,6 +473,7 @@
         const id = o.id || idOfName(o.name), c = colOf(id);
         if (o.notFree) add(0, 1440, o.name + ' not free', c, { k: id });
         o.busy.forEach(b => add(b.s, b.e, o.name + ' busy', c, { soft: true, k: id }));
+        (o.shift || []).forEach(b => add(b.s, b.e, o.name + ' ' + o.shiftLabel, c, { k: id, fit: true }));   // fit: never stretches the grid's hours
       });
     } else {
       // our busy time is grey shading behind the day, so their own plans sit on top at full width
@@ -496,8 +499,9 @@
   function weekGrid(days) {
     const PX = 44, data = days.map(gridItems), cols = 'grid-template-columns:48px repeat(' + days.length + ', minmax(0, 1fr))', nowM = (() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); })();
     let H0 = Math.floor(V.dayStart / 60), H1 = Math.ceil(V.dayEnd / 60);
-    data.forEach(x => x.it.forEach(e => { H0 = Math.min(H0, Math.floor(e.s / 60)); H1 = Math.max(H1, Math.ceil(e.e / 60)); }));
+    data.forEach(x => x.it.forEach(e => { if (e.fit) return; H0 = Math.min(H0, Math.floor(e.s / 60)); H1 = Math.max(H1, Math.ceil(e.e / 60)); }));
     H0 = Math.max(0, H0); H1 = Math.min(24, H1);
+    data.forEach(x => { x.it = x.it.filter(e => e.e > H0 * 60 && e.s < H1 * 60); });   // anything wholly outside the hours shown is in the day's details
     const top = m => (Math.max(m, H0 * 60) - H0 * 60) * PX / 60;
     const chip = x => '<button class="chip-ev' + (x.soft ? ' soft' : '') + '" ' + x.attrs + ' style="--c:' + x.col + '" title="' + esc(x.label) + '">' + esc(x.label) + '</button>';
     let h = '<div class="wk-wrap"><div class="wk' + (days.length === 1 ? ' one' : '') + '"><div class="wk-row wk-head" style="' + cols + '"><div class="wk-gut"></div>' + days.map(d => {
@@ -775,10 +779,15 @@
         b.id && !d.past ? '<button class="link small" data-share="' + esc(b.id) + '" data-title="' + esc(b.t) + '">Invite family</button>' : ''); });
       notes.forEach(b => { h += line('🗒', 'busy', '<span class="sub">' + esc(b.t) + ' <span class="when">· ' + esc(whenB(b)) + ', note only (not busy)</span></span>', ''); });
       if (!d.past) (d.others || []).forEach(o => {
-        const cal = o.notLinked ? 'calendar not linked yet' : o.unread ? 'can’t read their calendar right now' : o.busy.length ? 'busy ' + o.busy.map(b => esc(whenB(b))).join(', ') : 'free all day';
-        const shown = o.notFree ? '<strong>not free</strong> (marked by ' + esc(o.notFree) + ')' + (o.busy.length ? ' · ' + cal : '') : cal;
+        // shifts / school first, then calendar busy times, then whether their calendar is linked
+        const parts = [], sh = o.shift || [];
+        if (sh.length) parts.push(esc(o.shiftLabel) + ' ' + sh.map(b => esc(whenB(b))).join(', '));
+        if (o.busy.length) parts.push('busy ' + o.busy.map(b => esc(whenB(b))).join(', '));
+        if (o.notLinked) parts.push('calendar not linked yet'); else if (o.unread) parts.push('can’t read their calendar right now');
+        const cal = parts.length ? parts.join(' · ') : 'free all day';
+        const shown = o.notFree ? '<strong>not free</strong> (marked by ' + esc(o.notFree) + ')' + (parts.length ? ' · ' + cal : '') : cal;
         h += line('👤', 'busy', '<span class="sub">' + esc(o.name) + ': ' + shown + '</span>',
-          o.id ? '<button class="link small" data-notfree="' + esc(o.id) + '|' + d.date + '|' + (o.notFree ? '0' : '1') + '|' + esc(o.who || '') + '">' + (o.notFree ? 'Undo' : 'Not free') + '</button>' : '');
+          o.id && !o.noMark ? '<button class="link small" data-notfree="' + esc(o.id) + '|' + d.date + '|' + (o.notFree ? '0' : '1') + '|' + esc(o.who || '') + '">' + (o.notFree ? 'Undo' : 'Not free') + '</button>' : '');
       });
     }
     h += '</div>';
