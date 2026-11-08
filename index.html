@@ -474,7 +474,7 @@
         if (o.notFree) add(0, 1440, o.name + ' not free', c, { k: id });
         if (o.leave) add(0, 1440, '🌴 ' + o.name + ' on annual leave', c, { k: id, soft: true });
         o.busy.forEach(b => add(b.s, b.e, o.name + ' busy', c, { soft: true, k: id }));
-        (o.shift || []).forEach(b => add(b.s, b.e, o.name + ' ' + (b.l || o.shiftLabel), c, { k: id, fit: true }));   // fit: never stretches the grid's hours
+        (o.shift || []).forEach(b => add(b.s, b.e, o.name + ' ' + (/^(at work|on )/.test(b.l || o.shiftLabel || '') ? 'not free · ' + (b.l || o.shiftLabel) : (b.l || o.shiftLabel)), c, { k: id, fit: true }));   // fit: never stretches the grid's hours
       });
     } else {
       // our busy time is grey shading behind the day, so their own plans sit on top at full width
@@ -787,10 +787,12 @@
       if (!d.past) (d.others || []).forEach(o => {
         // shifts / school first, then calendar busy times, then whether their calendar is linked
         const parts = [], sh = o.shift || [];
-        if (sh.length) parts.push(sh.map(b => esc(b.l || o.shiftLabel) + ' ' + esc(whenB(b))).join(', '));
+        // work shifts read "not free until …" (her words); school reads "at school 8am–3pm"
+        const work = b => /^(at work|on )/.test(b.l || o.shiftLabel || '');
+        if (sh.length) parts.push(sh.map(b => work(b) ? '<strong>not free</strong> ' + (b.s <= V.dayStart ? 'until ' + esc(nice(b.e)) : esc(whenB(b))) + ' · ' + esc(b.l || o.shiftLabel) : esc(b.l || o.shiftLabel) + ' ' + esc(whenB(b))).join(', '));
         if (o.busy.length) parts.push('busy ' + o.busy.map(b => esc(whenB(b))).join(', '));
         if (o.leave) parts.unshift('on annual leave');
-        if (o.notLinked) parts.push('calendar not linked yet'); else if (o.unread) parts.push('can’t read their calendar right now');
+        if (o.unread) parts.push('can’t read their calendar right now');   // not linked: simply free unless something is on
         const cal = parts.length ? parts.join(' · ') : 'free all day';
         const shown = o.notFree ? '<strong>not free</strong> (marked by ' + esc(o.notFree) + ')' + (parts.length ? ' · ' + cal : '') : cal;
         h += line('👤', 'busy', '<span class="sub">' + esc(o.name) + ': ' + shown + '</span>',
