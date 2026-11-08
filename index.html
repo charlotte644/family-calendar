@@ -479,7 +479,8 @@
     } else {
       // our busy time is grey shading behind the day, so their own plans sit on top at full width
       d.busy.forEach(b => (b.s <= 0 && b.e >= 1440 ? add(0, 1440, V.us + ' busy', COL.busy, { soft: true, k: 'us' }) : bar({ s: b.s, e: b.e, label: V.us + ' busy', col: COL.busy, bg: true, k: 'us' })));
-      (d.myShifts || []).forEach(b => add(b.s, b.e, b.who + ' ' + b.l, colOf(V.me.id), { k: 'own', fit: true }));   // their own usual work
+      // their own usual work, and Eli's school in his colour
+      (d.myShifts || []).forEach(b => add(b.s, b.e, b.who + ' ' + b.l, b.theirs ? colOf(V.me.id) : colOf(b.who.toLowerCase()), { k: b.theirs ? 'own' : '*', fit: true }));
       (d.own || []).forEach(o => add(o.start ? o.s : 0, o.start ? o.e : 1440, (o.leave ? '🌴 ' : '') + (o.who && o.who !== 'both' ? o.who + ': ' : '') + o.title, colOf(V.me.id),
         { attrs: d.past ? '' : (o.leave ? 'data-unleave="' : 'data-own="') + esc(o.id) + '"', allDay: !o.start, k: 'own', soft: o.leave }));
     }
@@ -772,7 +773,8 @@
         (p.comments ? '<div class="comments">' + p.comments.map(c => '<div><strong>' + esc(c.who) + ':</strong> ' + esc(c.text) + '</div>').join('') +
           (!d.past ? '<form class="cform" data-cplan="' + esc(p.id) + '"><input type="text" name="c" maxlength="300" placeholder="Add a note for everyone going…"><button class="small">Add</button></form>' : '') + '</div>' : ''), acts);
     });
-    (d.myShifts || []).forEach(b => { h += line('💼', 'plan', '<strong>' + esc(b.who + ' ' + b.l) + '</strong> <span class="when">· ' + esc(range(b.s, b.e)) + '</span><div class="sub">Your usual work · Charlotte and Tom just see busy</div>', ''); });
+    (d.myShifts || []).forEach(b => { h += line(b.theirs ? '💼' : '🎒', 'plan', '<strong>' + esc(b.who + ' ' + b.l) + '</strong> <span class="when">· ' + esc(range(b.s, b.e)) + '</span>' +
+      (b.theirs ? '<div class="sub">Your usual work · Charlotte and Tom just see busy</div>' : ''), ''); });
     (d.own || []).forEach(o => { h += line(o.leave ? '🌴' : '🗓', 'plan', '<strong>' + esc((o.who && o.who !== 'both' ? o.who + ': ' : '') + o.title) + '</strong> <span class="when">· ' + esc(o.start ? range(o.s, o.e) : 'All day') + '</span><div class="sub">' + (o.leave ? 'Your usual work is off this day' : 'Your own plan · only you see what it is') + '</div>',
       d.past ? '' : o.leave ? '<button class="link small danger" data-unleave="' + esc(o.id) + '">Remove</button>' : '<button class="link small" data-own="' + esc(o.id) + '">Change</button>'); });
     h += careLine('sam', d) + careLine('nixon', d);
@@ -805,7 +807,8 @@
       h += '<div class="dayacts"><button data-plan="' + d.date + '">＋ ' + (boss() ? 'Plan' : 'Plan something with us') + '</button>' +
         (boss() || d.past ? '' : '<button data-addown="' + d.date + '">🗓 Add my own plan</button>') +
         // only offered when he isn't already with someone for the whole day
-        (d.sam.some(c => !c.start) ? '' : '<button data-have="sam|' + d.date + '">🧒 ' + (boss() ? 'Who has ' + esc(V.child) : 'I’ll have ' + esc(V.child)) + '</button>') +
+        // no "I'll have Sam" when they already have him that day
+        (d.sam.some(c => !c.start || c.mine) ? '' : '<button data-have="sam|' + d.date + '">🧒 ' + (boss() ? 'Who has ' + esc(V.child) : 'I’ll have ' + esc(V.child)) + '</button>') +
         (d.nixon.some(c => !c.start) ? '' : '<button data-have="nixon|' + d.date + '">🐶 ' + (boss() ? esc(V.dog) + '’s not with us' : 'I’ll have ' + esc(V.dog)) + '</button>') +
         ((V.workers || []).length ? '<button data-work="' + d.date + '">💼 ' + (V.me.role === 'admin' ? 'Leave / overtime' : 'Overtime / off') + '</button>' : '') +
         // Tom: one-tap overtime on top of today's hours, or a one-tap shift on a day he isn't working
