@@ -473,7 +473,7 @@
         const id = o.id || idOfName(o.name), c = colOf(id);
         if (o.notFree) add(0, 1440, o.name + ' not free', c, { k: id });
         o.busy.forEach(b => add(b.s, b.e, o.name + ' busy', c, { soft: true, k: id }));
-        (o.shift || []).forEach(b => add(b.s, b.e, o.name + ' ' + o.shiftLabel, c, { k: id, fit: true }));   // fit: never stretches the grid's hours
+        (o.shift || []).forEach(b => add(b.s, b.e, o.name + ' ' + (b.l || o.shiftLabel), c, { k: id, fit: true }));   // fit: never stretches the grid's hours
       });
     } else {
       // our busy time is grey shading behind the day, so their own plans sit on top at full width
@@ -532,10 +532,13 @@
       '<label>What is it?</label><input type="text" name="title" maxlength="80" required value="' + esc(o.title) + '" placeholder="e.g. Doctor’s appointment">' +
       (names ? '<label>Whose is it?</label><select name="who">' + names.concat(['both']).map(n => '<option value="' + n + '"' + (o.who === n ? ' selected' : '') + '>' + (n === 'both' ? 'Both of us' : n) + '</option>').join('') + '</select>' : '') +
       '<label>Day</label><input type="date" name="date" required min="' + V.today + '" value="' + esc(editing ? o.date : date) + '">' +
-      timeFields({ allDay: editing && !o.start, start: o.start, end: o.end }) +
+      timeFields({ allDay: editing && !o.start, start: o.start, end: o.end }) + (editing ? '' : repeatFields()) +
       '<label>Notes <span class="sub">(optional)</span></label><textarea name="notes" maxlength="300">' + esc(o.notes) + '</textarea>' +
       '<div class="dlgacts">' + (editing ? '<button type="button" class="link danger" data-delown="' + esc(o.id) + '">Delete</button>' : '') + '<button type="button" data-close>Back</button><button class="primary" type="submit">' + (editing ? 'Save' : 'Add it') + '</button></div>',
-      async fd => { await api('saveOwnPlan', KEY, { id: editing ? o.id : '', title: fd.get('title'), who: fd.get('who') || '', date: fd.get('date'), allDay: !!fd.get('allDay'), start: fd.get('start'), end: fd.get('end'), notes: fd.get('notes') }); return 'Saved. It’s on your own calendar too.'; });
+      async fd => {
+        const r = await api('saveOwnPlan', KEY, { id: editing ? o.id : '', title: fd.get('title'), who: fd.get('who') || '', date: fd.get('date'), allDay: !!fd.get('allDay'), start: fd.get('start'), end: fd.get('end'), notes: fd.get('notes'), repeat: fd.get('repeat') || '', until: fd.get('until') || '' });
+        return 'Saved.' + repeatMsg(r) + ' It’s on your own calendar too.';
+      });
     wireAllDay();
     const del = form.querySelector('[data-delown]');
     if (del) del.onclick = async () => { del.disabled = true; try { await api('deleteOwnPlan', KEY, o.id); dlg.close(); toast('Deleted.'); await load(FROM); } catch (e) { toast(e.message); del.disabled = false; } };
@@ -781,7 +784,7 @@
       if (!d.past) (d.others || []).forEach(o => {
         // shifts / school first, then calendar busy times, then whether their calendar is linked
         const parts = [], sh = o.shift || [];
-        if (sh.length) parts.push(esc(o.shiftLabel) + ' ' + sh.map(b => esc(whenB(b))).join(', '));
+        if (sh.length) parts.push(sh.map(b => esc(b.l || o.shiftLabel) + ' ' + esc(whenB(b))).join(', '));
         if (o.busy.length) parts.push('busy ' + o.busy.map(b => esc(whenB(b))).join(', '));
         if (o.notLinked) parts.push('calendar not linked yet'); else if (o.unread) parts.push('can’t read their calendar right now');
         const cal = parts.length ? parts.join(' · ') : 'free all day';
@@ -824,7 +827,13 @@
   function wireAllDay() {
     const cb = form.querySelector('[name=allDay]'), t = form.querySelector('[data-times]');
     if (cb && t) cb.onchange = () => { t.hidden = cb.checked; };
+    // Repeat: the "until" date only shows once a repeat is chosen (3 months ahead to start with)
+    const rp = form.querySelector('[name=repeat]'), un = form.querySelector('[data-until]'), di = form.querySelector('[name=date]');
+    if (rp && un) rp.onchange = () => { un.hidden = !rp.value; const u = un.querySelector('input'); if (rp.value && !u.value && di.value) u.value = addDays(di.value, 91); };
   }
+  const repeatFields = () => '<label>Repeat</label><select name="repeat"><option value="">Does not repeat</option><option value="week">Every week</option><option value="2weeks">Every 2 weeks</option><option value="month">Every month</option></select>' +
+    '<div data-until hidden><label>Until</label><input type="date" name="until"></div>';
+  const repeatMsg = r => r && r.count > 1 ? ' Added for ' + r.count + ' dates.' + (r.skipped && r.skipped.length ? ' Skipped ' + r.skipped.join(', ') + ' as we already have something on.' : '') : '';
   function freeHint(date) {
     const d = V.days.find(x => x.date === date);
     if (!d || boss()) return '';
@@ -848,15 +857,15 @@
       (boss() ? inviteBoxes(o.people) : '') +
       '<label>Day</label><input type="date" name="date" required value="' + esc(editing ? p.date : date) + '" min="' + (boss() ? '' : V.today) + '">' +
       (editing || boss() ? '' : freeHint(date)) +
-      timeFields({ allDay: editing && !p.start, start: o.start, end: o.end }) +
+      timeFields({ allDay: editing && !p.start, start: o.start, end: o.end }) + (editing ? '' : repeatFields()) +
       '<label>Where? <span class="sub">(optional)</span></label><input type="text" name="place" maxlength="120" value="' + esc(o.place) + '" placeholder="e.g. our house, or a pub name">' +
       '<label>Anything else? <span class="sub">(optional)</span></label><textarea name="notes" maxlength="500">' + esc(o.notes) + '</textarea>' +
       '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">' + (editing ? 'Save changes' : 'Add it') + '</button></div>',
       async fd => {
-        const data = { title: fd.get('title'), date: fd.get('date'), allDay: !!fd.get('allDay'), start: fd.get('start'), end: fd.get('end'), place: fd.get('place'), notes: fd.get('notes') };
+        const data = { title: fd.get('title'), date: fd.get('date'), allDay: !!fd.get('allDay'), start: fd.get('start'), end: fd.get('end'), place: fd.get('place'), notes: fd.get('notes'), repeat: fd.get('repeat') || '', until: fd.get('until') || '' };
         if (boss()) data.people = fd.getAll('people');
         if (editing) { await api('movePlan', KEY, p.id, data); return 'Changed. ' + (V.me.role === 'admin' ? '' : 'We’ll get an email to say so.'); }
-        await api('addPlan', KEY, data); return 'Added. ' + (V.me.role === 'admin' ? '' : 'We’ll get an email to say so.');
+        const r = await api('addPlan', KEY, data); return 'Added.' + repeatMsg(r) + (V.me.role === 'admin' ? '' : ' We’ll get an email to say so.');
       });
     wireAllDay();
     const di = form.querySelector('[name=date]'), hint = () => { const h = form.querySelector('[data-hint]'); if (h) h.outerHTML = freeHint(di.value) || '<div data-hint></div>'; };
