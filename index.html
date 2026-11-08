@@ -512,7 +512,7 @@
 
   function careLine(kind, d) {
     const list = d[kind], name = kind === 'sam' ? V.child : V.dog, cls = kind === 'sam' ? 'sam' : 'dog', ico = kind === 'sam' ? '🧒' : '🐶';
-    if (!list.length) return line(ico, cls, '<strong>' + esc(name) + '</strong> <span class="sub">is with us</span>', '');
+    if (!list.length) return kind === 'nixon' ? '' : line(ico, cls, '<strong>' + esc(name) + '</strong> <span class="sub">is with us</span>', '');   // Nixon is with us unless someone else has him
     return list.map(c => {
       const when = c.start ? range(c.s, c.e) : 'all day';
       const who = c.mine ? 'you' : c.name;
@@ -521,7 +521,7 @@
         acts = c.pattern ? '<button class="link small danger" data-drop="' + kind + '|' + d.date + '|' + esc(c.person) + '|">Can’t this time</button>'
           : '<button class="link small danger" data-drop="' + kind + '|' + d.date + '|' + esc(c.person) + '|' + esc(c.id) + '">Can’t after all</button>';
       }
-      return line(ico, cls, '<strong>' + esc(name) + '</strong> is with <strong>' + esc(who) + '</strong> <span class="when">· ' + when + (c.overnight ? ', overnight' : '') + (c.pattern ? ', usual day' : '') + '</span>' +
+      return line(ico, cls, '<strong>' + esc(name) + '</strong> is ' + (c.person === 'other' ? 'at' : 'with') + ' <strong>' + esc(who) + '</strong> <span class="when">· ' + when + (c.overnight ? ', overnight' : '') + (c.pattern ? ', usual day' : '') + '</span>' +
         (c.notes ? '<div class="sub">' + esc(c.notes) + '</div>' : ''), acts);
     }).join('');
   }
@@ -563,10 +563,10 @@
         b.id && !d.past ? '<button class="link small" data-share="' + esc(b.id) + '" data-title="' + esc(b.t) + '">Share with family</button>' : ''); });
       notes.forEach(b => { h += line('🗒', 'busy', '<span class="sub">' + esc(b.t) + ' <span class="when">· ' + esc(whenB(b)) + ', note only (not busy)</span></span>', ''); });
       if (!d.past) (d.others || []).forEach(o => {
-        const cal = o.unread ? 'can’t read their calendar right now' : o.busy.length ? 'busy ' + o.busy.map(b => esc(whenB(b))).join(', ') : 'free all day';
+        const cal = o.notLinked ? 'calendar not linked yet' : o.unread ? 'can’t read their calendar right now' : o.busy.length ? 'busy ' + o.busy.map(b => esc(whenB(b))).join(', ') : 'free all day';
         const shown = o.notFree ? '<strong>not free</strong> (marked by ' + esc(o.notFree) + ')' + (o.busy.length ? ' · ' + cal : '') : cal;
         h += line('👤', 'busy', '<span class="sub">' + esc(o.name) + ': ' + shown + '</span>',
-          o.id ? '<button class="link small" data-notfree="' + esc(o.id) + '|' + d.date + '|' + (o.notFree ? '0">Undo' : '1">Not free') + '</button>' : '');
+          o.id ? '<button class="link small" data-notfree="' + esc(o.id) + '|' + d.date + '|' + (o.notFree ? '0' : '1') + '|' + esc(o.who || '') + '">' + (o.notFree ? 'Undo' : 'Not free') + '</button>' : '');
       });
     }
     h += '</div>';
@@ -574,7 +574,7 @@
       h += '<div class="dayacts"><button data-plan="' + d.date + '">＋ ' + (boss() ? 'Plan' : 'Plan something with us') + '</button>' +
         // only offered when he isn't already with someone for the whole day
         (d.sam.some(c => !c.start) ? '' : '<button data-have="sam|' + d.date + '">🧒 ' + (boss() ? 'Who has ' + esc(V.child) : 'I’ll have ' + esc(V.child)) + '</button>') +
-        (d.nixon.some(c => !c.start) ? '' : '<button data-have="nixon|' + d.date + '">🐶 ' + (boss() ? 'Who has ' + esc(V.dog) : 'I’ll have ' + esc(V.dog)) + '</button>') +
+        (d.nixon.some(c => !c.start) ? '' : '<button data-have="nixon|' + d.date + '">🐶 ' + (boss() ? esc(V.dog) + '’s not with us' : 'I’ll have ' + esc(V.dog)) + '</button>') +
         ((V.workers || []).length ? '<button data-work="' + d.date + '">💼 ' + (V.me.role === 'admin' ? 'Leave / overtime' : 'Overtime / off') + '</button>' : '') +
         // Tom: one-tap overtime on top of today's hours, or a one-tap shift on a day he isn't working
         (V.me.role === 'full' && !d.past ? (d.myWork ? [60, 120, 180].map(m => '<button class="ot" data-ot="' + d.date + '|' + d.myWork.s + '|' + (d.myWork.e + m) + '">+' + (m / 60) + 'h</button>').join('')
@@ -639,16 +639,22 @@
   function haveDialog(kind, date) {
     const name = kind === 'sam' ? V.child : V.dog;
     openDialog('<h3>' + (boss() ? 'Who’s having ' + esc(name) + '?' : 'Have ' + esc(name)) + '</h3>' +
-      (boss() ? '<label>Who</label><select name="person" required>' + V.people.filter(p => p.id !== V.me.id || V.me.role === 'admin').map(p => '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>').join('') + '</select>' : '') +
+      (boss() ? '<label>' + (kind === 'nixon' ? 'Where is he?' : 'Who') + '</label><select name="person" required>' +
+        // Nixon: the kennels first, then family, then "somewhere else" with a box to say where
+        V.people.filter(p => p.id !== V.me.id || V.me.role === 'admin').sort((a, b) => kind === 'nixon' ? b.place - a.place : 0).map(p => '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>').join('') +
+        (kind === 'nixon' ? '<option value="other">Somewhere else…</option>' : '') + '</select>' +
+        (kind === 'nixon' ? '<div data-where hidden><label>Where?</label><input type="text" name="place" maxlength="120" placeholder="e.g. Sarah’s house"></div>' : '') : '') +
       '<label>Day</label><input type="date" name="date" required value="' + esc(date) + '" min="' + (boss() ? '' : V.today) + '">' +
       timeFields({ allDay: true }) +
       '<label>Anything we should know? <span class="sub">(optional)</span></label><textarea name="notes" maxlength="500" placeholder="e.g. I can pick him up at 9"></textarea>' +
       '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">' + (boss() ? 'Save' : 'Yes, I’ll have ' + esc(name)) + '</button></div>',
       async fd => {
-        await api('haveCare', KEY, { kind: kind, person: fd.get('person') || '', date: fd.get('date'), allDay: !!fd.get('allDay'), start: fd.get('start'), end: fd.get('end'), notes: fd.get('notes') });
+        await api('haveCare', KEY, { kind: kind, person: fd.get('person') || '', place: fd.get('place') || '', date: fd.get('date'), allDay: !!fd.get('allDay'), start: fd.get('start'), end: fd.get('end'), notes: fd.get('notes') });
         return boss() ? 'Saved.' : 'Thank you! We’ll get an email to say so.';
       });
     wireAllDay();
+    const sel = form.querySelector('[name=person]'), where = form.querySelector('[data-where]');
+    if (sel && where) sel.onchange = () => { where.hidden = sel.value !== 'other'; where.querySelector('input').required = sel.value === 'other'; };
   }
 
   // Tom: overtime or a day off. Charlotte: annual leave (for herself or Tom).
@@ -741,7 +747,7 @@
     }
     if (ds.notfree) {
       const a = ds.notfree.split('|'); t.disabled = true;
-      try { await api('markNotFree', KEY, a[0], a[1], a[2] === '1'); await load(FROM); } catch (e) { toast(e.message); t.disabled = false; }
+      try { await api('markNotFree', KEY, a[0], a[1], a[2] === '1', a[3] || ''); await load(FROM); } catch (e) { toast(e.message); t.disabled = false; }
       return;
     }
     if (ds.feedsave || ds.feedoff) {
