@@ -108,6 +108,18 @@
   .wbar { position: absolute; left: 0; width: 4px; background: var(--c); border-radius: 0 3px 3px 0; opacity: 0.85; }
   .now { position: absolute; left: 0; right: 0; height: 2px; background: #d93025; z-index: 2; pointer-events: none; }
   .wk-tip { text-align: center; margin: 0 0 14px; }
+  .wk.one { min-width: 0; }
+  .fbar { justify-content: center; align-items: center; margin: 0 0 10px; } .fbar .sub { margin-right: 2px; }
+  .mg { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; margin-bottom: 8px; }
+  .mg-head, .mg-body { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .mg-head { font-size: 0.72rem; font-weight: 600; color: var(--muted); text-align: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .mg-cell { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 2px; min-height: 92px; min-width: 0; padding: 4px 3px; border: 0; border-right: 1px solid #f1ece4; border-bottom: 1px solid #f1ece4; border-radius: 0; background: none; font-weight: 400; text-align: left; }
+  .mg-cell:hover { background: var(--brand-soft); } .mg-cell.out { background: #faf8f4; } .mg-cell.out .mg-n { color: var(--muted); font-weight: 400; }
+  .mg-n { align-self: flex-start; font-size: 0.8rem; font-weight: 700; padding: 0 6px; border-radius: 999px; } .mg-cell.today .mg-n { background: var(--brand); color: #fff; }
+  .mg-chip { display: block; font-size: 0.66rem; font-weight: 700; line-height: 1.35; border-radius: 4px; padding: 0 4px; background: var(--c); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mg-chip.soft { background: #f1ece4; background: color-mix(in srgb, var(--c) 16%, white); color: var(--ink); border-left: 3px solid var(--c); }
+  .mg-more { font-size: 0.64rem; color: var(--muted); padding-left: 4px; }
+  @media (max-width: 520px) { .mg-cell { min-height: 70px; padding: 3px 1px; } .mg-chip { font-size: 0.58rem; padding: 0 2px; } }
   .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; font-size: 0.82rem; color: var(--muted); margin: 4px 0 18px; }
   .sw { display: inline-block; width: 16px; height: 10px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
   .sw.free { background: var(--free); } .sw.busy { background: var(--busy); } .sw.plan { background: var(--plan); }
@@ -263,7 +275,7 @@
 
   async function load(from) {
     try {
-      V = await api('getView', KEY, from || FROM || '');
+      V = await api('getView', KEY, from || FROM || '', VIEW === 'month' ? 42 : 7);   // a month is six weeks
       FROM = V.from;
       render();
     } catch (e) {
@@ -290,7 +302,8 @@
     // Tom's "Charlotte's Desk" button: the link is scrambled with his own key, so it never sits in this public page as plain text.
     const desk = V.me.role === 'full' ? unscramble('WRJDQkMCTktaDFNGWFoRRAQPA1AfX1BFWRNVHFlXTgdRBUBYW0ERVUxdUhdaFxpFWlsDR15VUhwMVUNcAVoLAlBKXgJSV1ADRw8=') : '';
     let top = '<div class="tools">' + (desk ? '<a class="btn small primary" href="' + esc(desk) + '" target="_blank" rel="noopener">📋 Charlotte’s Desk</a>' : '') + '<button class="small" data-big="1" aria-pressed="' + big + '">' + (big ? 'Smaller text' : 'Bigger text') + '</button>' +
-      (V.me.role !== 'family' ? '<button class="small" data-card="sam">🧒 ' + esc(V.child) + '’s card</button><button class="small" data-card="nixon">🐶 ' + esc(V.dog) + '’s card</button>' : '') + '</div>';
+      (V.me.role !== 'family' ? '<button class="small primary" data-addplan="1">＋ Add a plan</button><button class="small" data-card="sam">🧒 ' + esc(V.child) + '’s card</button><button class="small" data-card="nixon">🐶 ' + esc(V.dog) + '’s card</button>' : '') +
+      (V.me.role === 'full' ? '<button class="small" data-instr="1">ℹ️ Instructions</button>' : '') + '</div>';
     if (V.me.role === 'admin') top += '<div class="tabs"><button data-tab="cal" aria-pressed="' + (TAB === 'cal') + '">Calendar</button><button data-tab="set" aria-pressed="' + (TAB === 'set') + '">People &amp; settings</button></div>';
     $('#top').innerHTML = top;
     if (TAB === 'set' && V.me.role === 'admin') return renderSettings();
@@ -309,8 +322,8 @@
     const asked = (V.needs || []).length ? '<p class="asked">You’ve asked us to bring: ' + V.needs.map(n => esc(n.item)).join(', ') + '</p>' : '';
     const later = V.from > addDays(V.today, 6);   // she has jumped ahead to another week
     return '<section class="weekcard"><h2>' + (later ? esc(weekTitle(V.from, V.to)) : 'Your week') + '</h2>' + (mine.length ? '<ul>' + mine.join('') + '</ul>' : '<p>Nothing booked with us ' + (later ? 'that' : 'this') + ' week.</p>') + asked +
-      '<div class="row"><button data-card="sam">🧒 ' + esc(V.child) + '’s care card</button><button data-card="nixon">🐶 ' + esc(V.dog) + '’s care card</button>' +
-      '<button data-need="1">🛍️ We need more…</button></div></section>';
+      '<div class="row"><button class="primary" data-addplan="1">＋ Add a plan</button><button data-card="sam">🧒 ' + esc(V.child) + '’s care card</button><button data-card="nixon">🐶 ' + esc(V.dog) + '’s care card</button>' +
+      '<button data-need="1">🛍️ We need more…</button><button data-instr="1">ℹ️ Instructions</button></div></section>';
   }
   // Charlotte and Tom: what carers have asked us to bring
   function needsPanel() {
@@ -355,25 +368,71 @@
       '<p class="sub" style="margin-bottom:0">It then opens like an app, straight to your own calendar.</p></details>';
   }
 
+  // Three views: day (one day in full, with arrows), week (a column per day) and month.
   function renderCalendar() {
-    let h = (V.me.role === 'family' ? weekCard() : '') + toBookPanel() + needsPanel() + busyBanner() + linkPanel() + subscribePanel() + homeScreenHelp();
-    h += '<div class="week"><button data-go="back" ' + (V.canBack ? '' : 'disabled') + ' aria-label="Previous week">‹ Back</button><strong>' + esc(weekTitle(V.from, V.to)) + '</strong><button data-go="next" ' + (V.canForward ? '' : 'disabled') + ' aria-label="Next week">Next ›</button></div>';
-    h += '<div class="vt">' + (V.from !== V.today ? '<button class="link small" data-go="today">Back to today</button>' : '') +
-      '<button class="small" data-view="week" aria-pressed="' + (VIEW === 'week') + '">Week</button><button class="small" data-view="list" aria-pressed="' + (VIEW === 'list') + '">List</button></div>';
-    if (VIEW === 'list') {
-      h += '<div class="strip">' + V.days.map(tile).join('') + '</div>';
-      h += '<div class="legend"><span><i class="sw free"></i>Free</span><span><i class="sw busy"></i>' + (boss() ? 'Busy' : 'We’re busy') + '</span><span><i class="sw plan"></i>' + (boss() ? 'Plans with family' : 'Plans with you') + '</span></div>';
-    }
-    if (V.canJump) h += '<div class="jump"><label for="jump">Jump to a date</label><input type="date" id="jump" data-jump min="' + addDays(V.today, -28) + '" max="' + esc(V.lastDay) + '" value="' + V.from + '"></div>';
-    if (VIEW === 'week') h += weekLegend() + weekGrid();
-    else V.days.forEach(d => { h += dayCard(d); });
+    if (['day', 'week', 'month'].indexOf(VIEW) === -1) VIEW = 'week';
+    if (VIEW === 'day' && !V.days.some(d => d.date === DAY)) DAY = V.days.some(d => d.date === V.today) ? V.today : V.from;
+    if (VIEW === 'month' && !MONTH) MONTH = V.days[10].date.slice(0, 7);
+    let h = (V.me.role === 'family' && VIEW !== 'month' ? weekCard() : '') + toBookPanel() + needsPanel() + (VIEW === 'week' ? busyBanner() : '');
+    const title = VIEW === 'day' ? V.days.find(d => d.date === DAY).label : VIEW === 'month' ? MONTHS[+MONTH.slice(5) - 1] + ' ' + MONTH.slice(0, 4) : weekTitle(V.from, V.to);
+    h += '<div class="week"><button data-nav="-1" aria-label="Previous ' + VIEW + '">‹</button><strong>' + esc(title) + '</strong><button data-nav="1" aria-label="Next ' + VIEW + '">›</button></div>';
+    h += '<div class="vt"><button class="link small" data-nav="today">Today</button>' + ['day', 'week', 'month'].map(v => '<button class="small" data-view="' + v + '" aria-pressed="' + (VIEW === v) + '">' + v[0].toUpperCase() + v.slice(1) + '</button>').join('') + '</div>';
+    h += filterBar();
+    if (V.canJump) h += '<div class="jump"><label for="jump">Jump to a date</label><input type="date" id="jump" data-jump min="' + addDays(V.today, -28) + '" max="' + esc(V.lastDay) + '" value="' + (VIEW === 'day' ? DAY : V.from) + '"></div>';
+    h += weekLegend();
+    if (VIEW === 'month') h += monthGrid();
+    else if (VIEW === 'day') { const d = V.days.find(x => x.date === DAY); h += weekGrid([d]) + dayCard(d); }
+    else h += weekGrid(V.days);
     if (V.ideas) h = '<div class="layout"><div class="cal">' + h + '</div><aside class="side">' + ideasPanel() + '</aside></div>';
     $('#main').innerHTML = h;
   }
 
   // ---------- week grid: a column per day, hour by hour, one colour per person ----------
-  let VIEW = 'week';
-  try { VIEW = localStorage.getItem('famcal_view') || 'week'; } catch (e) { /* default */ }
+  let VIEW = 'week', DAY = '', MONTH = '', FILTER = '';
+  try { VIEW = localStorage.getItem('famcal_view') || 'week'; FILTER = localStorage.getItem('famcal_filter') || ''; } catch (e) { /* default */ }
+  const remember = () => { try { localStorage.setItem('famcal_view', VIEW); localStorage.setItem('famcal_filter', FILTER); } catch (e) { /* fine */ } };
+  // Monday on or before the 1st, so a month is six full weeks
+  const monthStart = ym => { const first = ym + '-01', wd = new Date(first + 'T00:00:00Z').getUTCDay(); return addDays(first, -((wd + 6) % 7)); };
+  const shiftMonth = (ym, n) => { const y = +ym.slice(0, 4), m = +ym.slice(5) - 1 + n; return new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 7); };
+  function goDay(ds) { DAY = ds; return V.days.some(d => d.date === ds) ? render() : load(ds); }
+  function nav(step) {
+    if (step === 'today') { DAY = V.today; MONTH = V.today.slice(0, 7); return load(VIEW === 'month' ? monthStart(MONTH) : V.today); }
+    if (VIEW === 'day') return goDay(addDays(DAY, step));
+    if (VIEW === 'month') { MONTH = shiftMonth(MONTH, step); return load(monthStart(MONTH)); }
+    return load(addDays(V.from, 7 * step));
+  }
+  function setView(v) {
+    const was = VIEW; VIEW = v; remember();
+    if (v === 'day') return goDay(DAY && V.days.some(d => d.date === DAY) ? DAY : V.days.some(d => d.date === V.today) ? V.today : was === 'month' ? MONTH + '-01' : V.from);
+    if (v === 'month') { MONTH = (was === 'day' ? DAY : V.days.some(d => d.date === V.today) ? V.today : V.from).slice(0, 7); return load(monthStart(MONTH)); }
+    return load(was === 'day' ? DAY : was === 'month' ? (V.today.slice(0, 7) === MONTH ? V.today : MONTH + '-01') : V.from);
+  }
+  function filterBar() {
+    const opts = boss() ? [['', 'Everyone'], ['charlotte', 'Charlotte'], ['tom', 'Tom'], ['sam', V.child], ['nixon', V.dog], ['plans', 'Plans with family']]
+        .concat(V.people.filter(p => !p.place && p.id !== 'tom').map(p => [p.id, p.name]))
+      : [['', 'Everyone'], ['us', V.us], ['sam', V.child], ['nixon', V.dog], ['plans', 'Plans with us'], ['own', 'My own plans']];
+    return '<div class="filters fbar"><span class="sub">Show:</span>' + opts.map(o => '<button class="small' + (FILTER === o[0] ? ' on' : '') + '" data-filter="' + esc(o[0]) + '">' + esc(o[1]) + '</button>').join('') + '</div>';
+  }
+  function monthGrid() {
+    let h = '<div class="mg"><div class="mg-head">' + ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(w => '<span>' + w + '</span>').join('') + '</div><div class="mg-body">';
+    V.days.slice(0, 42).forEach(d => {
+      const g = gridItems(d), items = g.all.map(x => Object.assign({ ad: true }, x)).concat(g.it.sort((a, b) => a.s - b.s));
+      h += '<button class="mg-cell' + (d.date.slice(0, 7) !== MONTH ? ' out' : '') + (d.date === V.today ? ' today' : '') + (d.past ? ' past' : '') + '" data-dayopen="' + d.date + '" aria-label="' + esc(d.label) + '"><span class="mg-n">' + (+d.date.slice(8)) + '</span>' +
+        items.slice(0, 3).map(x => '<span class="mg-chip' + (x.soft ? ' soft' : '') + '" style="--c:' + x.col + '">' + (x.ad ? '' : nice(x.s) + ' ') + esc(x.label) + '</span>').join('') +
+        (items.length > 3 ? '<span class="mg-more">+' + (items.length - 3) + ' more</span>' : '') + '</button>';
+    });
+    return h + '</div></div><p class="sub wk-tip">Tap a day to see it in full.</p>';
+  }
+  // ＋ Add a plan (by the care cards): family choose their own plan or one with us
+  function addPlanDialog() {
+    const date = VIEW === 'day' ? DAY : V.days.some(d => d.date === V.today) ? V.today : V.from;
+    return boss() ? planDialog(date, null) : slotDialog(date, '');
+  }
+  // One Instructions button: linking their calendar, putting ours on their phone, the home-screen icon
+  function instructionsDialog() {
+    openDialog('<h3>Instructions</h3>' + linkPanel() + subscribePanel() + homeScreenHelp() + '<div class="dlgacts"><button type="button" data-close>Close</button></div>', async () => '');
+    form.querySelectorAll('button:not([type])').forEach(b => { b.type = 'button'; });
+  }
   const COL = { charlotte: '#7b4fb8', tom: '#2f73c4', sam: '#c9860c', nixon: '#b8562a', tomsmum: '#2e8f5b', mumdad: '#c7407e', busy: '#9a948a', other: '#5f7f8c' };
   const colOf = id => COL[id] || COL.other;
   const idOfName = n => { const p = V.people.find(x => x.name === n); return p ? p.id : /^(Nanay|Tatay)$/.test(n) ? 'mumdad' : ''; };
@@ -387,30 +446,37 @@
   }
   function gridItems(d) {
     const it = [], all = [], bars = [];
-    const add =(s, e, label, col, o) => { o = o || {}; const x = { s: s, e: e, label: label, col: col, soft: !!o.soft, attrs: o.attrs || '' }; (o.allDay || (s <= 0 && e >= 1440) ? all : it).push(x); };
-    if (d.bankHoliday) add(0, 1440, '🏖️ Bank holiday', COL.busy, { soft: true });
-    (d.birthdays || []).forEach(b => add(0, 1440, (b.kind === 'anniversary' ? '💐 ' : '🎂 ') + b.name, COL.other, { soft: true }));
+    // k = whose it is (for the filter), ks = anyone else it also belongs to; '*' always shows
+    const shown = o => !FILTER || o.k === '*' || o.k === FILTER || (o.ks || []).indexOf(FILTER) !== -1;
+    const add = (s, e, label, col, o) => {
+      o = o || {}; if (!shown(o)) return;
+      const x = { s: s, e: e, label: label, col: col, soft: !!o.soft, attrs: o.attrs || '' }; (o.allDay || (s <= 0 && e >= 1440) ? all : it).push(x);
+    };
+    const bar = o => { if (shown(o)) bars.push(o); };
+    if (d.bankHoliday) add(0, 1440, '🏖️ Bank holiday', COL.busy, { soft: true, k: '*' });
+    (d.birthdays || []).forEach(b => add(0, 1440, (b.kind === 'anniversary' ? '💐 ' : '🎂 ') + b.name, COL.other, { soft: true, k: '*' }));
     if (boss()) {
       d.busy.forEach(b => {
         if (b.n) return;
-        if (b.w) return bars.push({ s: b.s, e: b.e, label: b.t, col: colOf(b.who) });   // usual work hours: a slim stripe, like Google's working hours
-        add(b.s, b.e, (b.c === 'work' ? 'Work: ' : b.c === 'social' ? 'Social: ' : '') + (b.t || 'Busy'), colOf('charlotte'), { soft: b.c !== 'work' });
+        if (b.w) return bar({ s: b.s, e: b.e, label: b.t, col: colOf(b.who), k: b.who });   // usual work hours: a slim stripe, like Google's working hours
+        add(b.s, b.e, (b.c === 'work' ? 'Work: ' : b.c === 'social' ? 'Social: ' : '') + (b.t || 'Busy'), colOf('charlotte'), { soft: b.c !== 'work', k: 'charlotte' });
       });
-      (d.work || []).forEach(w => add(0, 1440, '🌴 ' + w.label, colOf(w.who), { soft: true }));
+      (d.work || []).forEach(w => add(0, 1440, '🌴 ' + w.label, colOf(w.who), { soft: true, k: w.who }));
       (d.others || []).forEach(o => {
-        const c = colOf(o.id || idOfName(o.name));
-        if (o.notFree) add(0, 1440, o.name + ' not free', c);
-        o.busy.forEach(b => add(b.s, b.e, o.name + ' busy', c, { soft: true }));
+        const id = o.id || idOfName(o.name), c = colOf(id);
+        if (o.notFree) add(0, 1440, o.name + ' not free', c, { k: id });
+        o.busy.forEach(b => add(b.s, b.e, o.name + ' busy', c, { soft: true, k: id }));
       });
     } else {
       // our busy time is grey shading behind the day, so their own plans sit on top at full width
-      d.busy.forEach(b => (b.s <= 0 && b.e >= 1440 ? add(0, 1440, V.us + ' busy', COL.busy, { soft: true }) : bars.push({ s: b.s, e: b.e, label: V.us + ' busy', col: COL.busy, bg: true })));
+      d.busy.forEach(b => (b.s <= 0 && b.e >= 1440 ? add(0, 1440, V.us + ' busy', COL.busy, { soft: true, k: 'us' }) : bar({ s: b.s, e: b.e, label: V.us + ' busy', col: COL.busy, bg: true, k: 'us' })));
       (d.own || []).forEach(o => add(o.start ? o.s : 0, o.start ? o.e : 1440, (o.who && o.who !== 'both' ? o.who + ': ' : '') + o.title, colOf(V.me.id),
-        { attrs: d.past ? '' : 'data-own="' + esc(o.id) + '"', allDay: !o.start }));
+        { attrs: d.past ? '' : 'data-own="' + esc(o.id) + '"', allDay: !o.start, k: 'own' }));
     }
-    d.plans.forEach(p => add(p.start ? p.s : 0, p.start ? p.e : 1440, '📅 ' + p.title, planCol(p), { attrs: p.canEdit && !d.past ? 'data-move="' + esc(p.id) + '"' : '', allDay: !p.start }));
+    d.plans.forEach(p => add(p.start ? p.s : 0, p.start ? p.e : 1440, '📅 ' + p.title, planCol(p),
+      { attrs: p.canEdit && !d.past ? 'data-move="' + esc(p.id) + '"' : '', allDay: !p.start, k: 'plans', ks: (p.people || []).concat(['charlotte', 'tom']) }));
     ['sam', 'nixon'].forEach(k => d[k].forEach(c => add(c.start ? c.s : 0, c.start ? c.e : 1440,
-      (k === 'sam' ? '🧒 ' + V.child : '🐶 ' + V.dog) + (c.mine ? ' with you' : (c.person === 'other' ? ' at ' : ' with ') + c.name), COL[k], { allDay: !c.start })));
+      (k === 'sam' ? '🧒 ' + V.child : '🐶 ' + V.dog) + (c.mine ? ' with you' : (c.person === 'other' ? ' at ' : ' with ') + c.name), COL[k], { allDay: !c.start, k: k, ks: [c.person] })));
     return { it: it, all: all, bars: bars };
   }
   // side-by-side columns where events overlap, like Google Calendar
@@ -422,21 +488,21 @@
     if (group.length) flush();
     return items;
   }
-  function weekGrid() {
-    const PX = 44, data = V.days.map(gridItems), nowM = (() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); })();
+  function weekGrid(days) {
+    const PX = 44, data = days.map(gridItems), cols = 'grid-template-columns:48px repeat(' + days.length + ', minmax(0, 1fr))', nowM = (() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); })();
     let H0 = Math.floor(V.dayStart / 60), H1 = Math.ceil(V.dayEnd / 60);
     data.forEach(x => x.it.forEach(e => { H0 = Math.min(H0, Math.floor(e.s / 60)); H1 = Math.max(H1, Math.ceil(e.e / 60)); }));
     H0 = Math.max(0, H0); H1 = Math.min(24, H1);
     const top = m => (Math.max(m, H0 * 60) - H0 * 60) * PX / 60;
     const chip = x => '<button class="chip-ev' + (x.soft ? ' soft' : '') + '" ' + x.attrs + ' style="--c:' + x.col + '" title="' + esc(x.label) + '">' + esc(x.label) + '</button>';
-    let h = '<div class="wk-wrap"><div class="wk"><div class="wk-row wk-head"><div class="wk-gut"></div>' + V.days.map(d => {
+    let h = '<div class="wk-wrap"><div class="wk' + (days.length === 1 ? ' one' : '') + '"><div class="wk-row wk-head" style="' + cols + '"><div class="wk-gut"></div>' + days.map(d => {
       const p = dParts(d.date);
       return '<button class="wk-dh' + (d.date === V.today ? ' today' : '') + '" data-dayopen="' + d.date + '" title="Open ' + esc(d.label) + '"><span>' + p.wd + '</span><b>' + p.num + '</b></button>';
     }).join('') + '</div>';
-    h += '<div class="wk-row wk-all"><div class="wk-gut">All day</div>' + data.map(x => '<div class="cell">' + x.all.map(chip).join('') + '</div>').join('') + '</div>';
-    h += '<div class="wk-body" style="height:' + (H1 - H0) * PX + 'px"><div class="wk-gut wk-hours">';
+    h += '<div class="wk-row wk-all" style="' + cols + '"><div class="wk-gut">All day</div>' + data.map(x => '<div class="cell">' + x.all.map(chip).join('') + '</div>').join('') + '</div>';
+    h += '<div class="wk-body" style="' + cols + ';height:' + (H1 - H0) * PX + 'px"><div class="wk-gut wk-hours">';
     for (let hr = H0 + 1; hr < H1; hr++) h += '<span style="top:' + (hr - H0) * PX + 'px">' + nice(hr * 60) + '</span>';
-    h += '</div>' + V.days.map((d, i) => {
+    h += '</div>' + days.map((d, i) => {
       let c = '<div class="wk-col' + (d.past ? ' past' : '') + '" data-slot="' + d.date + '" data-h0="' + H0 + '" style="background-size:100% ' + PX + 'px">';
       if (d.date === V.today && nowM >= H0 * 60 && nowM <= H1 * 60) c += '<div class="now" style="top:' + top(nowM) + 'px"></div>';
       data[i].bars.forEach(b => { c += '<div class="' + (b.bg ? 'bgbusy' : 'wbar') + '" title="' + esc(b.label + ', ' + range(b.s, b.e)) + '" style="--c:' + b.col + ';top:' + top(b.s) + 'px;height:' + (top(Math.min(b.e, H1 * 60)) - top(b.s)) + 'px"></div>'; });
@@ -447,7 +513,7 @@
       });
       return c + '</div>';
     }).join('') + '</div></div></div>';
-    return h + '<p class="sub wk-tip">' + (boss() ? 'Tap a day’s name for its full card (Sam, ' + esc(V.dog) + ', leave). Tap an empty slot to add a plan.' : 'Tap an empty slot to add something. Tap a day’s name for the full day.') + '</p>';
+    return h + '<p class="sub wk-tip">' + (days.length === 1 ? 'Tap an empty slot to add something. Everything for the day is listed below.' : 'Tap a day’s name to see that day in full. Tap an empty slot to add something.') + '</p>';
   }
   // Family: a plan of their own. Only they see what it is; Charlotte and Tom just see that they're busy.
   function ownDialog(o, date, start) {
@@ -468,7 +534,7 @@
   // Tapping an empty hour: family choose their own plan or one with us; Charlotte and Tom add a plan
   function slotDialog(date, start) {
     if (boss()) return planDialog(date, null, start);
-    openDialog('<h3>' + esc(V.days.find(d => d.date === date).label) + ', ' + esc(nice(start)) + '</h3>' +
+    openDialog('<h3>' + (start ? esc(V.days.find(d => d.date === date).label) + ', ' + esc(nice(start)) : 'Add a plan') + '</h3>' +
       '<div class="row" style="flex-direction:column;align-items:stretch;gap:8px"><button type="button" class="primary" data-pick="own">Add my own plan</button><button type="button" data-pick="us">Plan something with ' + esc(V.us) + '</button></div>' +
       '<div class="dlgacts"><button type="button" data-close>Back</button></div>', async () => '');
     form.querySelector('[data-pick=own]').onclick = () => { dlg.close(); ownDialog(null, date, start); };
@@ -862,8 +928,12 @@
     if (ds.copy) { try { await navigator.clipboard.writeText(ds.copy); toast('Copied.'); } catch (e) { prompt('Copy this:', ds.copy); } return; }
     const findPlan = id => { for (const d of V.days) { const p = d.plans.find(x => x.id === id); if (p) return p; } return null; };
     if (ds.plan) return planDialog(ds.plan, null);
-    if (ds.view) { VIEW = ds.view; try { localStorage.setItem('famcal_view', VIEW); } catch (e) { } render(); return; }
-    if (ds.dayopen) { VIEW = 'list'; try { localStorage.setItem('famcal_view', VIEW); } catch (e) { } render(); const c = document.getElementById('d-' + ds.dayopen); if (c) c.scrollIntoView({ behavior: 'smooth' }); return; }
+    if (ds.view) return setView(ds.view);
+    if (ds.nav) return nav(ds.nav === 'today' ? 'today' : +ds.nav);
+    if (ds.filter !== undefined) { FILTER = ds.filter; remember(); render(); return; }
+    if (ds.dayopen) { VIEW = 'day'; remember(); await goDay(ds.dayopen); window.scrollTo({ top: $('#main').offsetTop, behavior: 'smooth' }); return; }
+    if (ds.addplan) return addPlanDialog();
+    if (ds.instr) return instructionsDialog();
     if (ds.own) return ownDialog((V.days.flatMap(d => d.own || [])).find(o => o.id === ds.own), null);
     if (ds.addown) return ownDialog(null, ds.addown, '');
     if (ds.move) return planDialog(null, findPlan(ds.move));
@@ -979,7 +1049,9 @@
     }
     const A = ADMIN, base = (A.settings.site_url || (location.origin + location.pathname)).replace(/#.*$/, '');
     const roles = r => '<select name="role" style="margin-top:6px"><option value="family"' + (r === 'family' ? ' selected' : '') + '>Sees free/busy only</option><option value="full"' + (r === 'full' ? ' selected' : '') + '>Sees everything</option><option value="place"' + (r === 'place' ? ' selected' : '') + '>A place (e.g. kennels), no link</option></select>';
-    let h = '<div class="panel settings"><h3>People with a link</h3><p class="sub">Each person (or couple) has one private link. Nobody needs a password. Put several email addresses separated by commas, e.g. both Nanay’s and Tatay’s: everyone listed gets the updates. “Sees everything” shows what your busy times are (for Tom).</p><table>';
+    // Instructions for this link (putting the family calendar in your phone's calendar, the home-screen icon)
+    let h = '<div class="panel settings"><h3>Instructions</h3>' + subscribePanel() + homeScreenHelp() + '</div>' +
+      '<div class="panel settings"><h3>People with a link</h3><p class="sub">Each person (or couple) has one private link. Nobody needs a password. Put several email addresses separated by commas, e.g. both Nanay’s and Tatay’s: everyone listed gets the updates. “Sees everything” shows what your busy times are (for Tom).</p><table>';
     A.people.forEach(p => {
       const place = p.role === 'place';
       h += '<tr data-person="' + esc(p.id) + '"><td style="min-width:150px"><input type="text" name="name" value="' + esc(p.name) + '"><div class="note">' + (p.active || place ? '' : '<span class="bad">Link switched off</span>') + '</div></td>' +
@@ -1073,14 +1145,17 @@
     try { await api('addComment', KEY, f.dataset.cplan, v); await load(FROM); } catch (e) { toast(e.message); f.querySelector('button').disabled = false; }
   });
   // Jump straight to any date (Charlotte and Tom).
-  document.addEventListener('change', ev => { if (ev.target.matches && ev.target.matches('[data-jump]') && ev.target.value) load(ev.target.value); });
+  document.addEventListener('change', ev => { if (ev.target.matches && ev.target.matches('[data-jump]') && ev.target.value) {
+    const ds = ev.target.value;
+    if (VIEW === 'day') goDay(ds); else if (VIEW === 'month') { MONTH = ds.slice(0, 7); load(monthStart(MONTH)); } else load(ds);
+  } });
   // Keep the pattern rows in memory while editing, so "+ Add a day" does not lose changes.
   document.addEventListener('change', ev => {
     const tr = ev.target.closest && ev.target.closest('tr[data-pat], tr[data-rt]'); if (!tr || !ADMIN) return;
     const r = tr.dataset.pat !== undefined ? ADMIN.pattern[+tr.dataset.pat] : ADMIN.routine[+tr.dataset.rt], n = ev.target.name; if (!r) return;
     r[n] = n === 'weekday' ? +ev.target.value : ev.target.value;
   });
-  async function loadQuiet() { try { V = await api('getView', KEY, FROM); } catch (e) { /* page shows the error next time */ } }
+  async function loadQuiet() { try { V = await api('getView', KEY, FROM, VIEW === 'month' ? 42 : 7); } catch (e) { /* page shows the error next time */ } }
 
   // ---------- start ----------
   if (!KEY) { $('#main').innerHTML = '<div class="msg">Please open this page using the personal link you were sent.</div>'; return; }
