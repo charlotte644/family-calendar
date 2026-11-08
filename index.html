@@ -796,7 +796,8 @@
         const cal = parts.length ? parts.join(' · ') : 'free all day';
         const shown = o.notFree ? '<strong>not free</strong> (marked by ' + esc(o.notFree) + ')' + (parts.length ? ' · ' + cal : '') : cal;
         h += line('👤', 'busy', '<span class="sub">' + esc(o.name) + ': ' + shown + '</span>',
-          o.id && !o.noMark ? '<button class="link small" data-notfree="' + esc(o.id) + '|' + d.date + '|' + (o.notFree ? '0' : '1') + '|' + esc(o.who || '') + '">' + (o.notFree ? 'Undo' : 'Not free') + '</button>' : '');
+          // "Not free" only while they show as free; "Undo" once marked
+          o.id && !o.noMark && (o.notFree || !parts.length) ? '<button class="link small" data-notfree="' + esc(o.id) + '|' + d.date + '|' + (o.notFree ? '0' : '1') + '|' + esc(o.who || '') + '">' + (o.notFree ? 'Undo' : 'Not free') + '</button>' : '');
       });
     }
     h += '</div>';
