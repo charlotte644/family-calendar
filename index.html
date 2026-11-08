@@ -109,6 +109,7 @@
   .now { position: absolute; left: 0; right: 0; height: 2px; background: #d93025; z-index: 2; pointer-events: none; }
   .wk-tip { text-align: center; margin: 0 0 14px; }
   .wk.one { min-width: 0; }
+  .actday { display: grid; grid-template-columns: 80px 1fr auto 1fr; gap: 6px; align-items: center; margin-top: 4px; } .actday .check { margin: 0; } .actday input[type=time] { padding: 5px 6px; }
   .invite { display: flex; flex-wrap: wrap; gap: 6px; }
   .ichip { display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 7px 12px; border: 2px solid var(--c); border-radius: 999px; font-weight: 600; cursor: pointer; }
   .ichip:has(input:checked) { background: var(--c); color: #fff; }
@@ -326,7 +327,7 @@
     const later = V.from > addDays(V.today, 6);   // she has jumped ahead to another week
     return '<section class="weekcard"><h2>' + (later ? esc(weekTitle(V.from, V.to)) : 'Your week') + '</h2>' + (mine.length ? '<ul>' + mine.join('') + '</ul>' : '<p>Nothing booked with us ' + (later ? 'that' : 'this') + ' week.</p>') + asked +
       '<div class="row"><button class="primary" data-addplan="1">＋ Add a plan</button><button data-card="sam">🧒 ' + esc(V.child) + '’s care card</button><button data-card="nixon">🐶 ' + esc(V.dog) + '’s care card</button>' +
-      '<button data-need="1">🛍️ We need more…</button>' + (V.leaveFor ? '<button data-annual="1">🌴 Annual leave</button>' : '') + '<button data-instr="1">ℹ️ Instructions</button></div></section>';
+      '<button data-need="1">🛍️ We need more…</button>' + (V.leaveFor ? '<button data-annual="1">🌴 Annual leave</button>' : '') + (V.activities ? '<button data-acts="1">🎒 Eli’s activities</button>' : '') + '<button data-instr="1">ℹ️ Instructions</button></div></section>';
   }
   // Charlotte and Tom: what carers have asked us to bring
   function needsPanel() {
@@ -480,7 +481,8 @@
       // our busy time is grey shading behind the day, so their own plans sit on top at full width
       d.busy.forEach(b => (b.s <= 0 && b.e >= 1440 ? add(0, 1440, V.us + ' busy', COL.busy, { soft: true, k: 'us' }) : bar({ s: b.s, e: b.e, label: V.us + ' busy', col: COL.busy, bg: true, k: 'us' })));
       // their own usual work, and Eli's school in his colour
-      (d.myShifts || []).forEach(b => add(b.s, b.e, b.who + ' ' + b.l, b.theirs ? colOf(V.me.id) : colOf(b.who.toLowerCase()), { k: b.theirs ? 'own' : '*', fit: true }));
+      (d.myShifts || []).filter(b => !b.skipped).forEach(b => add(b.s, b.e, b.who + ' ' + b.l, b.theirs ? colOf(V.me.id) : colOf(b.who.toLowerCase()),
+        { k: b.theirs ? 'own' : '*', fit: true, attrs: b.act && !d.past ? 'data-actskip="' + esc(b.act) + '|' + d.date + '|1"' : '' }));
       (d.own || []).forEach(o => add(o.start ? o.s : 0, o.start ? o.e : 1440, (o.leave ? '🌴 ' : '') + (o.who && o.who !== 'both' ? o.who + ': ' : '') + o.title, colOf(V.me.id),
         { attrs: d.past ? '' : (o.leave ? 'data-unleave="' : 'data-own="') + esc(o.id) + '"', allDay: !o.start, k: 'own', soft: o.leave }));
     }
@@ -773,8 +775,9 @@
         (p.comments ? '<div class="comments">' + p.comments.map(c => '<div><strong>' + esc(c.who) + ':</strong> ' + esc(c.text) + '</div>').join('') +
           (!d.past ? '<form class="cform" data-cplan="' + esc(p.id) + '"><input type="text" name="c" maxlength="300" placeholder="Add a note for everyone going…"><button class="small">Add</button></form>' : '') + '</div>' : ''), acts);
     });
-    (d.myShifts || []).forEach(b => { h += line(b.theirs ? '💼' : '🎒', 'plan', '<strong>' + esc(b.who + ' ' + b.l) + '</strong> <span class="when">· ' + esc(range(b.s, b.e)) + '</span>' +
-      (b.theirs ? '<div class="sub">Your usual work · Charlotte and Tom just see busy</div>' : ''), ''); });
+    (d.myShifts || []).forEach(b => { h += line(b.theirs ? '💼' : '🎒', 'plan', (b.skipped ? '<s>' : '<strong>') + esc(b.who + ' ' + b.l) + (b.skipped ? '</s> <span class="when">· not going</span>' : '</strong> <span class="when">· ' + esc(range(b.s, b.e)) + '</span>') +
+      (b.theirs ? '<div class="sub">Your usual work · Charlotte and Tom just see busy</div>' : ''),
+      b.act && !d.past ? '<button class="link small' + (b.skipped ? '' : ' danger') + '" data-actskip="' + esc(b.act) + '|' + d.date + '|' + (b.skipped ? '0">Undo' : '1">Not going') + '</button>' : ''); });
     (d.own || []).forEach(o => { h += line(o.leave ? '🌴' : '🗓', 'plan', '<strong>' + esc((o.who && o.who !== 'both' ? o.who + ': ' : '') + o.title) + '</strong> <span class="when">· ' + esc(o.start ? range(o.s, o.e) : 'All day') + '</span><div class="sub">' + (o.leave ? 'Your usual work is off this day' : 'Your own plan · only you see what it is') + '</div>',
       d.past ? '' : o.leave ? '<button class="link small danger" data-unleave="' + esc(o.id) + '">Remove</button>' : '<button class="link small" data-own="' + esc(o.id) + '">Change</button>'); });
     h += careLine('sam', d) + careLine('nixon', d);
@@ -853,6 +856,49 @@
       if (!window.confirm(e.message.slice(8) + '\n\nAre you sure you want to add it anyway?')) throw new Error('Not added. Pick another time, or save again and choose OK to add it anyway.');
       return await call(true);
     }
+  }
+  // Nanay & Tatay: Eli's recurring activities (Ju Jitsu etc.)
+  const WDN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], WD_ORDER = [1, 2, 3, 4, 5, 6, 0];
+  const actWhen = a => a.sessions.slice().sort((x, y) => WD_ORDER.indexOf(x.day) - WD_ORDER.indexOf(y.day)).map(s => WDN[s.day] + ' ' + range(toMins(s.start), toMins(s.end))).join(', ');
+  const fmtDay = ds => { const p = dParts(ds); return p.wd + ' ' + p.num + ' ' + p.mo; };
+  function activitiesDialog() {
+    const list = V.activities || [];
+    openDialog('<h3>🎒 Eli’s activities</h3><p class="sub">These show every week until you pause or stop them. Tap “Not going” on a day in the calendar to skip just that one.</p>' +
+      (list.length ? list.map(a => {
+        const over = a.until && a.until < V.today;
+        return '<div class="panel" style="margin:8px 0;padding:10px 12px"><strong>' + esc(a.who + ' – ' + a.title) + '</strong>' + (over ? ' <span class="chip">stopped</span>' : '') +
+          '<div class="sub">' + esc(actWhen(a)) + (a.until && !over ? ' · until ' + esc(fmtDay(a.until)) : '') + '</div>' +
+          (a.off || []).map((r, i) => '<div class="sub">Not on ' + esc(fmtDay(r[0])) + ' – ' + esc(fmtDay(r[1])) + ' <button type="button" class="link small" data-actunpause="' + esc(a.id) + '|' + i + '">Undo</button></div>').join('') +
+          '<div class="row" style="margin-top:6px">' + (over ? '' : '<button type="button" class="small" data-actpause="' + esc(a.id) + '">⏸ Not on for a while</button><button type="button" class="small" data-actedit="' + esc(a.id) + '">Change</button><button type="button" class="small danger" data-actstop="' + esc(a.id) + '">Stop it</button>') +
+          '<button type="button" class="link small danger" data-actdel="' + esc(a.id) + '">Remove</button></div></div>';
+      }).join('') : '<p>No activities yet.</p>') +
+      '<div class="dlgacts"><button type="button" data-close>Close</button><button type="button" class="primary" data-actadd="1">＋ Add a recurring activity</button></div>', async () => '');
+  }
+  function activityForm(a) {
+    const editing = !!a; a = a || { title: '', sessions: [], from: V.today, until: '', who: 'Eli' };
+    const at = d => a.sessions.find(s => s.day === d);
+    openDialog('<h3>' + (editing ? 'Change ' + esc(a.title) : 'Add a recurring activity') + '</h3>' +
+      '<label>What is it?</label><input type="text" name="title" maxlength="60" required value="' + esc(a.title) + '" placeholder="e.g. Swimming">' +
+      '<label>Which days, and what time?</label>' + WD_ORDER.map(d => { const s = at(d); return '<div class="actday"><label class="check"><input type="checkbox" name="day' + d + '"' + (s ? ' checked' : '') + '> ' + WDN[d] + '</label>' +
+        '<input type="time" name="start' + d + '" step="300" value="' + esc(s ? s.start : '') + '"><span class="sub">to</span><input type="time" name="end' + d + '" step="300" value="' + esc(s ? s.end : '') + '"></div>'; }).join('') +
+      '<div class="two"><div><label>Starts</label><input type="date" name="from" value="' + esc(a.from || V.today) + '"></div><div><label>Ends <span class="sub">(optional)</span></label><input type="date" name="until" value="' + esc(a.until || '') + '"></div></div>' +
+      '<div class="dlgacts"><button type="button" data-acts="1">Back</button><button class="primary" type="submit">Save</button></div>',
+      async fd => {
+        const sessions = WD_ORDER.filter(d => fd.get('day' + d)).map(d => ({ day: d, start: fd.get('start' + d), end: fd.get('end' + d) }));
+        V.activities = await api('saveActivity', KEY, { id: editing ? a.id : '', who: a.who, title: fd.get('title'), sessions: sessions, from: fd.get('from'), until: fd.get('until') });
+        return 'Saved.';
+      });
+    // ticking a day without a time copies the last time typed in
+    form.querySelectorAll('.actday input[type=checkbox]').forEach(cb => cb.onchange = () => {
+      const row = cb.closest('.actday'), s = row.querySelector('[name^=start]'), e = row.querySelector('[name^=end]');
+      if (cb.checked && !s.value) { const prev = [...form.querySelectorAll('.actday')].map(r => [r.querySelector('[name^=start]').value, r.querySelector('[name^=end]').value]).find(x => x[0]); if (prev) { s.value = prev[0]; e.value = prev[1]; } }
+    });
+  }
+  function pauseForm(a) {
+    openDialog('<h3>⏸ ' + esc(a.title) + ' not on for a while</h3><p class="sub">E.g. a break over the holidays. It comes back by itself afterwards.</p>' +
+      '<div class="two"><div><label>From</label><input type="date" name="from" required value="' + V.today + '"></div><div><label>Until</label><input type="date" name="to" required value="' + V.today + '"></div></div>' +
+      '<div class="dlgacts"><button type="button" data-acts="1">Back</button><button class="primary" type="submit">Save</button></div>',
+      async fd => { V.activities = await api('changeActivity', KEY, a.id, 'pause', fd.get('from'), fd.get('to')); return 'Saved.'; });
   }
   // Nanay & Tatay: annual leave, so their usual work doesn't show those days
   function leaveDialog() {
@@ -996,6 +1042,23 @@
     if (ds.instr) return instructionsDialog();
     if (ds.own) return ownDialog((V.days.flatMap(d => d.own || [])).find(o => o.id === ds.own), null);
     if (ds.annual) return leaveDialog();
+    if (ds.acts) return activitiesDialog();
+    if (ds.actadd) return activityForm(null);
+    if (ds.actedit) return activityForm(V.activities.find(a => a.id === ds.actedit));
+    if (ds.actpause) return pauseForm(V.activities.find(a => a.id === ds.actpause));
+    if (ds.actskip || ds.actstop || ds.actdel || ds.actunpause) {
+      // one session not going / undo, stop it for good, remove it, or end a break
+      let args, ask = '';
+      if (ds.actskip) { const a = ds.actskip.split('|'); args = [a[0], a[2] === '1' ? 'skip' : 'unskip', a[1]]; }
+      else if (ds.actstop) { args = [ds.actstop, 'stop']; ask = 'Stop this activity? It won’t show from today on.'; }
+      else if (ds.actdel) { args = [ds.actdel, 'delete']; ask = 'Remove this activity completely?'; }
+      else { const a = ds.actunpause.split('|'); args = [a[0], 'unpause', a[1]]; }
+      if (ask && !window.confirm(ask)) return;
+      t.disabled = true;
+      try { V.activities = await api('changeActivity', KEY, ...args); if (dlg.open) activitiesDialog(); toast(args[1] === 'skip' ? 'Marked as not going.' : 'Done.'); await load(FROM); if (dlg.open) activitiesDialog(); }
+      catch (e) { toast(e.message); t.disabled = false; }
+      return;
+    }
     if (ds.unleave) {
       const o = V.days.flatMap(d => d.own || []).find(x => x.id === ds.unleave);
       return confirmDialog('Remove this annual leave?', '<strong>' + esc((o.who && o.who !== 'both' ? o.who + ': ' : '') + 'Annual leave') + '</strong>' + (o.repeats ? '<br><span class="sub">This day and the rest of this leave will be removed.</span>' : ''), { text: 'Yes, remove it' },
