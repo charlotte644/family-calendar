@@ -613,10 +613,11 @@
     if (L.linked) return '<details class="panel"><summary>✅ Your calendar is linked</summary><p class="sub">Charlotte and Tom can see when you’re busy, but never what you’re doing. Nobody else can see it.</p>' +
       '<button class="link small danger" data-linkcal="0">Stop sharing my calendar</button></details>';
     return '<details class="panel"><summary>📅 Link your calendar to ours</summary>' +
-      '<p>This lets Charlotte and Tom see when you’re busy, just as you can see when they are. They’ll only see “busy”, never what you’re doing.</p><ol>' +
-      '<li>Open Chrome and go to <a href="https://calendar.google.com" target="_blank" rel="noopener">calendar.google.com</a>' + (L.account ? ', signed in as ' + esc(L.account) : '') + '.</li>' +
-      '<li>Tap the ⋮ menu (top right) and tick <strong>Desktop site</strong>.</li>' +
-      '<li>Tap the ⚙ cog, then <strong>Settings</strong>.</li>' +
+      '<p>This lets Charlotte and Tom see when you’re busy, just as you can see when they are. They’ll only see “busy”, never what you’re doing.</p>' +
+      '<p class="sub">You can do it all on your phone. The Google Calendar app can’t share, so you use the Google Calendar website in your phone’s browser instead.</p><ol>' +
+      '<li>On your phone, open <strong>Chrome</strong> (Android) or <strong>Safari</strong> (iPhone) and go to <a href="https://calendar.google.com" target="_blank" rel="noopener">calendar.google.com</a>' + (L.account ? ', signed in as ' + esc(L.account) : '') + '.</li>' +
+      '<li>Switch to the full website: <strong>Android:</strong> tap the ⋮ menu (top right) and tick <strong>Desktop site</strong>. <strong>iPhone:</strong> tap <strong>aA</strong> in the address bar, then <strong>Request Desktop Website</strong>.</li>' +
+      '<li>Tap the ⚙ cog, then <strong>Settings</strong>. You may need to zoom in with two fingers.</li>' +
       '<li>On the left, under “Settings for my calendars”, tap your name.</li>' +
       '<li>Under “Share with specific people”, tap <strong>Add people</strong>.</li>' +
       '<li>Type <strong>' + esc(L.shareWith) + '</strong>, choose <strong>See only free/busy (hide details)</strong>, then tap <strong>Send</strong>.</li></ol>' +
