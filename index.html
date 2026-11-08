@@ -109,6 +109,9 @@
   .now { position: absolute; left: 0; right: 0; height: 2px; background: #d93025; z-index: 2; pointer-events: none; }
   .wk-tip { text-align: center; margin: 0 0 14px; }
   .wk.one { min-width: 0; }
+  .invite { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ichip { display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 7px 12px; border: 2px solid var(--c); border-radius: 999px; font-weight: 600; cursor: pointer; }
+  .ichip:has(input:checked) { background: var(--c); color: #fff; }
   .fbar { justify-content: center; align-items: center; margin: 0 0 10px; } .fbar .sub { margin-right: 2px; }
   .mg { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; margin-bottom: 8px; }
   .mg-head, .mg-body { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
@@ -459,7 +462,9 @@
       d.busy.forEach(b => {
         if (b.n) return;
         if (b.w) return bar({ s: b.s, e: b.e, label: b.t, col: colOf(b.who), k: b.who });   // usual work hours: a slim stripe, like Google's working hours
-        add(b.s, b.e, (b.c === 'work' ? 'Work: ' : b.c === 'social' ? 'Social: ' : '') + (b.t || 'Busy'), colOf('charlotte'), { soft: b.c !== 'work', k: 'charlotte' });
+        // her own events (they carry an id): tap to invite family
+        add(b.s, b.e, (b.c === 'work' ? 'Work: ' : b.c === 'social' ? 'Social: ' : '') + (b.t || 'Busy'), colOf('charlotte'),
+          { soft: b.c !== 'work', k: 'charlotte', attrs: b.id && !d.past ? 'data-share="' + esc(b.id) + '" data-title="' + esc(b.t) + '"' : '' });
       });
       (d.work || []).forEach(w => add(0, 1440, '🌴 ' + w.label, colOf(w.who), { soft: true, k: w.who }));
       (d.others || []).forEach(o => {
@@ -767,7 +772,7 @@
       (d.work || []).forEach(w => { h += line('🌴', 'busy', '<span class="sub">' + esc(w.label) + '</span>', ''); });
       const whenB = b => b.s <= 0 && b.e >= 1440 ? 'all day' : range(b.s, b.e);
       other.forEach(b => { h += line(b.c === 'work' ? '💼' : b.c === 'social' ? '🥂' : '•', 'busy', '<span class="sub">' + (b.c ? '<strong>' + (b.c === 'work' ? 'Work' : 'Social') + ':</strong> ' : '') + esc(b.t || 'Busy') + ' <span class="when">· ' + esc(whenB(b)) + '</span></span>',
-        b.id && !d.past ? '<button class="link small" data-share="' + esc(b.id) + '" data-title="' + esc(b.t) + '">Share with family</button>' : ''); });
+        b.id && !d.past ? '<button class="link small" data-share="' + esc(b.id) + '" data-title="' + esc(b.t) + '">Invite family</button>' : ''); });
       notes.forEach(b => { h += line('🗒', 'busy', '<span class="sub">' + esc(b.t) + ' <span class="when">· ' + esc(whenB(b)) + ', note only (not busy)</span></span>', ''); });
       if (!d.past) (d.others || []).forEach(o => {
         const cal = o.notLinked ? 'calendar not linked yet' : o.unread ? 'can’t read their calendar right now' : o.busy.length ? 'busy ' + o.busy.map(b => esc(whenB(b))).join(', ') : 'free all day';
@@ -817,6 +822,11 @@
     const f = freeWindows(d, V);
     return '<div class="free-hint" data-hint>' + (f.length ? 'We’re free ' + f.map(w => range(w[0], w[1])).join(', ') + ' that day.' : 'We’re busy all day that day, sorry. Try another day.') + '</div>';
   }
+  // Tick-box chips for inviting family (Tom already sees everything, so he isn't listed)
+  function inviteBoxes(selected) {
+    return '<label>Invite</label><div class="invite">' + V.people.filter(p => !p.place && p.id !== 'tom').map(p => '<label class="ichip" style="--c:' + colOf(p.id) + '"><input type="checkbox" name="people" value="' + esc(p.id) + '" ' +
+      (selected.indexOf(p.id) !== -1 ? 'checked' : '') + '> ' + esc(p.name) + '</label>').join('') + '</div>';
+  }
   function peopleBoxes(selected) {
     return '<label>Who’s it with?</label>' + V.people.filter(p => !p.place).map(p => '<label class="check" style="margin-top:4px"><input type="checkbox" name="people" value="' + esc(p.id) + '" ' + (selected.indexOf(p.id) !== -1 ? 'checked' : '') + '> ' + esc(p.name) + '</label>').join('');
   }
@@ -826,12 +836,12 @@
     const o = p || { title: '', place: '', notes: '', start: start || '', end: start ? hhmm(Math.min(toMins(start) + 60, 1439)) : '', people: [] };
     openDialog('<h3>' + (editing ? 'Change this plan' : boss() ? 'Add a plan' : 'Plan something with us') + '</h3>' +
       '<label>What is it?</label><input type="text" name="title" maxlength="80" required value="' + esc(o.title) + '" placeholder="e.g. Sunday lunch">' +
+      (boss() ? inviteBoxes(o.people) : '') +
       '<label>Day</label><input type="date" name="date" required value="' + esc(editing ? p.date : date) + '" min="' + (boss() ? '' : V.today) + '">' +
       (editing || boss() ? '' : freeHint(date)) +
       timeFields({ allDay: editing && !p.start, start: o.start, end: o.end }) +
       '<label>Where? <span class="sub">(optional)</span></label><input type="text" name="place" maxlength="120" value="' + esc(o.place) + '" placeholder="e.g. our house, or a pub name">' +
       '<label>Anything else? <span class="sub">(optional)</span></label><textarea name="notes" maxlength="500">' + esc(o.notes) + '</textarea>' +
-      (boss() ? peopleBoxes(o.people) : '') +
       '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">' + (editing ? 'Save changes' : 'Add it') + '</button></div>',
       async fd => {
         const data = { title: fd.get('title'), date: fd.get('date'), allDay: !!fd.get('allDay'), start: fd.get('start'), end: fd.get('end'), place: fd.get('place'), notes: fd.get('notes') };
@@ -1016,10 +1026,11 @@
       return;
     }
     if (ds.share) {
-      return openDialog('<h3>Share with family</h3><p><strong>' + esc(ds.title) + '</strong></p><p class="sub">They’ll see it as a plan with you (and can add it to their calendar). It stays in your own calendar as it is.</p>' +
-        peopleBoxes([]) + '<label>Note for them <span class="sub">(optional)</span></label><input type="text" name="notes" maxlength="200">' +
-        '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">Share</button></div>',
-        async fd => { await api('adminLinkEvent', KEY, { eventId: ds.share, people: fd.getAll('people'), notes: fd.get('notes') }); return 'Shared.'; });
+      return openDialog('<h3>Invite family</h3><p><strong>' + esc(ds.title) + '</strong></p>' + inviteBoxes([]) +
+        '<label>Note for them <span class="sub">(optional)</span></label><input type="text" name="notes" maxlength="200">' +
+        '<p class="sub">They get an email and it appears on their family calendar as a plan with you. It stays in your own calendar as it is.</p>' +
+        '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">Invite</button></div>',
+        async fd => { await api('adminLinkEvent', KEY, { eventId: ds.share, people: fd.getAll('people'), notes: fd.get('notes') }); return 'Invited.'; });
     }
     if (ds.drop) {
       const a = ds.drop.split('|'), name = a[0] === 'sam' ? V.child : V.dog, label = V.days.find(d => d.date === a[1]).label;
