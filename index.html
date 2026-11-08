@@ -478,6 +478,7 @@
     } else {
       // our busy time is grey shading behind the day, so their own plans sit on top at full width
       d.busy.forEach(b => (b.s <= 0 && b.e >= 1440 ? add(0, 1440, V.us + ' busy', COL.busy, { soft: true, k: 'us' }) : bar({ s: b.s, e: b.e, label: V.us + ' busy', col: COL.busy, bg: true, k: 'us' })));
+      (d.myShifts || []).forEach(b => add(b.s, b.e, b.who + ' ' + b.l, colOf(V.me.id), { k: 'own', fit: true }));   // their own usual work
       (d.own || []).forEach(o => add(o.start ? o.s : 0, o.start ? o.e : 1440, (o.who && o.who !== 'both' ? o.who + ': ' : '') + o.title, colOf(V.me.id),
         { attrs: d.past ? '' : 'data-own="' + esc(o.id) + '"', allDay: !o.start, k: 'own' }));
     }
@@ -770,6 +771,7 @@
         (p.comments ? '<div class="comments">' + p.comments.map(c => '<div><strong>' + esc(c.who) + ':</strong> ' + esc(c.text) + '</div>').join('') +
           (!d.past ? '<form class="cform" data-cplan="' + esc(p.id) + '"><input type="text" name="c" maxlength="300" placeholder="Add a note for everyone going…"><button class="small">Add</button></form>' : '') + '</div>' : ''), acts);
     });
+    (d.myShifts || []).forEach(b => { h += line('💼', 'plan', '<strong>' + esc(b.who + ' ' + b.l) + '</strong> <span class="when">· ' + esc(range(b.s, b.e)) + '</span><div class="sub">Your usual work · Charlotte and Tom just see busy</div>', ''); });
     (d.own || []).forEach(o => { h += line('🗓', 'plan', '<strong>' + esc((o.who && o.who !== 'both' ? o.who + ': ' : '') + o.title) + '</strong> <span class="when">· ' + esc(o.start ? range(o.s, o.e) : 'All day') + '</span><div class="sub">Your own plan · only you see what it is</div>',
       d.past ? '' : '<button class="link small" data-own="' + esc(o.id) + '">Change</button>'); });
     h += careLine('sam', d) + careLine('nixon', d);
