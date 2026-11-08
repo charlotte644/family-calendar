@@ -534,14 +534,14 @@
       '<label>Day</label><input type="date" name="date" required min="' + V.today + '" value="' + esc(editing ? o.date : date) + '">' +
       timeFields({ allDay: editing && !o.start, start: o.start, end: o.end }) + (editing ? '' : repeatFields()) +
       '<label>Notes <span class="sub">(optional)</span></label><textarea name="notes" maxlength="300">' + esc(o.notes) + '</textarea>' +
-      '<div class="dlgacts">' + (editing ? '<button type="button" class="link danger" data-delown="' + esc(o.id) + '">Delete</button>' : '') + '<button type="button" data-close>Back</button><button class="primary" type="submit">' + (editing ? 'Save' : 'Add it') + '</button></div>',
+      '<div class="dlgacts">' + (editing ? '<button type="button" class="link danger" data-delown="' + esc(o.id) + '">' + (o.repeats ? 'Delete all dates' : 'Delete') + '</button>' : '') + '<button type="button" data-close>Back</button><button class="primary" type="submit">' + (editing ? 'Save' : 'Add it') + '</button></div>',
       async fd => {
         const r = await api('saveOwnPlan', KEY, { id: editing ? o.id : '', title: fd.get('title'), who: fd.get('who') || '', date: fd.get('date'), allDay: !!fd.get('allDay'), start: fd.get('start'), end: fd.get('end'), notes: fd.get('notes'), repeat: fd.get('repeat') || '', until: fd.get('until') || '' });
         return 'Saved.' + repeatMsg(r) + ' It’s on your own calendar too.';
       });
     wireAllDay();
     const del = form.querySelector('[data-delown]');
-    if (del) del.onclick = async () => { del.disabled = true; try { await api('deleteOwnPlan', KEY, o.id); dlg.close(); toast('Deleted.'); await load(FROM); } catch (e) { toast(e.message); del.disabled = false; } };
+    if (del) del.onclick = async () => { del.disabled = true; try { const r = await api('deleteOwnPlan', KEY, o.id); dlg.close(); toast(r && r.count > 1 ? 'Deleted all ' + r.count + ' dates.' : 'Deleted.'); await load(FROM); } catch (e) { toast(e.message); del.disabled = false; } };
   }
   // Tapping an empty hour: family choose their own plan or one with us; Charlotte and Tom add a plan
   function slotDialog(date, start) {
@@ -968,8 +968,10 @@
     if (ds.addcal) return addCalDialog(findPlan(ds.addcal));
     if (ds.cancel) {
       const p = findPlan(ds.cancel);
-      return confirmDialog('Cancel this plan?', '<strong>' + esc(p.title) + '</strong><br>' + esc(V.days.find(d => d.date === p.date).label) + ', ' + esc(p.start ? range(p.s, p.e) : 'all day'), { text: 'Yes, cancel it' },
-        async () => { await api('cancelPlan', KEY, p.id); return 'Cancelled.'; });
+      // a repeating plan is cancelled as a whole: this date and all the later ones
+      return confirmDialog(p.repeats ? 'Cancel this repeating plan?' : 'Cancel this plan?', '<strong>' + esc(p.title) + '</strong><br>' + esc(V.days.find(d => d.date === p.date).label) + ', ' + esc(p.start ? range(p.s, p.e) : 'all day') +
+        (p.repeats ? '<br><span class="sub">This and every later date of it will be cancelled.</span>' : ''), { text: p.repeats ? 'Yes, cancel all dates' : 'Yes, cancel it' },
+        async () => { const r = await api('cancelPlan', KEY, p.id); return r && r.count > 1 ? 'Cancelled all ' + r.count + ' dates.' : 'Cancelled.'; });
     }
     if (ds.have) { const a = ds.have.split('|'); return haveDialog(a[0], a[1]); }
     if (ds.work) return workDialog(ds.work);
