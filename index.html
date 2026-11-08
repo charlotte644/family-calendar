@@ -792,7 +792,7 @@
         if (sh.length) parts.push(sh.map(b => work(b) ? '<strong>not free</strong> ' + (b.s <= V.dayStart ? 'until ' + esc(nice(b.e)) : esc(whenB(b))) + ' · ' + esc(b.l || o.shiftLabel) : esc(b.l || o.shiftLabel) + ' ' + esc(whenB(b))).join(', '));
         if (o.busy.length) parts.push('busy ' + o.busy.map(b => esc(whenB(b))).join(', '));
         if (o.leave) parts.unshift('on annual leave');
-        if (o.unread) parts.push('can’t read their calendar right now');   // not linked: simply free unless something is on
+        // a calendar that isn't linked, or can't be read, says nothing (her rule): free unless something is on
         const cal = parts.length ? parts.join(' · ') : 'free all day';
         const shown = o.notFree ? '<strong>not free</strong> (marked by ' + esc(o.notFree) + ')' + (parts.length ? ' · ' + cal : '') : cal;
         h += line('👤', 'busy', '<span class="sub">' + esc(o.name) + ': ' + shown + '</span>',
