@@ -84,6 +84,30 @@
   .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .week { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 18px 0 10px; }
   .week strong { font-family: Fraunces, Georgia, serif; font-size: 1.15rem; text-align: center; }
+  .vt { display: flex; gap: 6px; justify-content: flex-end; align-items: center; margin: -4px 0 10px; }
+  .vt button[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .wk-legend { gap: 10px 14px; margin: 0 0 10px; } .wk-legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--c); }
+  .wk-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 16px; margin-bottom: 8px; }
+  .wk { min-width: 660px; }
+  .wk-row, .wk-body { display: grid; grid-template-columns: 48px repeat(7, minmax(0, 1fr)); }
+  .wk-head { border-bottom: 1px solid var(--line); }
+  .wk-dh { border: 0; border-radius: 0; background: none; flex-direction: column; gap: 0; padding: 6px 2px; color: var(--muted); font-size: 0.72rem; font-weight: 600; }
+  .wk-dh b { font-size: 1.2rem; color: var(--ink); line-height: 1.3; padding: 0 7px; } .wk-dh.today b { background: var(--brand); color: #fff; border-radius: 999px; }
+  .wk-all { border-bottom: 1px solid var(--line); } .wk-all .cell { padding: 3px 2px; display: flex; flex-direction: column; gap: 2px; border-left: 1px solid #f1ece4; min-height: 22px; min-width: 0; }
+  .wk-gut { font-size: 0.68rem; color: var(--muted); text-align: right; padding: 5px 6px 0 0; }
+  .wk-hours { position: relative; padding: 0; } .wk-hours span { position: absolute; right: 6px; transform: translateY(-50%); white-space: nowrap; }
+  .wk-col { position: relative; border-left: 1px solid #f1ece4; background-image: linear-gradient(to bottom, #eee7dc 1px, transparent 1px); cursor: pointer; }
+  .wk-col.past { background-color: #faf8f4; cursor: default; }
+  .ev, .chip-ev { border: 0; border-radius: 6px; padding: 2px 5px; background: var(--c); color: #fff; font-size: 0.7rem; font-weight: 700; line-height: 1.2; text-align: left; overflow: hidden; display: block; }
+  .ev { position: absolute; box-sizing: border-box; margin-left: 1px; }
+  .chip-ev { white-space: nowrap; text-overflow: ellipsis; width: 100%; }
+  .ev.soft, .chip-ev.soft { background: #f1ece4; background: color-mix(in srgb, var(--c) 16%, white); color: var(--ink); border-left: 3px solid var(--c); border-radius: 4px; }
+  .ev .ev-t { display: block; overflow: hidden; text-overflow: ellipsis; } .ev .ev-w { display: block; font-weight: 400; opacity: 0.85; }
+  .bgbusy { position: absolute; left: 0; right: 0; background: repeating-linear-gradient(135deg, #ece6dc 0 6px, #f4f0e9 6px 12px); border-top: 2px solid #c9c2b6; }
+  .bgbusy::after { content: 'Busy'; position: absolute; top: 2px; left: 8px; font-size: 0.66rem; font-weight: 700; color: var(--muted); }
+  .wbar { position: absolute; left: 0; width: 4px; background: var(--c); border-radius: 0 3px 3px 0; opacity: 0.85; }
+  .now { position: absolute; left: 0; right: 0; height: 2px; background: #d93025; z-index: 2; pointer-events: none; }
+  .wk-tip { text-align: center; margin: 0 0 14px; }
   .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; font-size: 0.82rem; color: var(--muted); margin: 4px 0 18px; }
   .sw { display: inline-block; width: 16px; height: 10px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
   .sw.free { background: var(--free); } .sw.busy { background: var(--busy); } .sw.plan { background: var(--plan); }
@@ -334,14 +358,128 @@
   function renderCalendar() {
     let h = (V.me.role === 'family' ? weekCard() : '') + toBookPanel() + needsPanel() + busyBanner() + linkPanel() + subscribePanel() + homeScreenHelp();
     h += '<div class="week"><button data-go="back" ' + (V.canBack ? '' : 'disabled') + ' aria-label="Previous week">‹ Back</button><strong>' + esc(weekTitle(V.from, V.to)) + '</strong><button data-go="next" ' + (V.canForward ? '' : 'disabled') + ' aria-label="Next week">Next ›</button></div>';
-    h += '<div class="strip">' + V.days.map(tile).join('') + '</div>';
-    h += '<div class="legend"><span><i class="sw free"></i>Free</span><span><i class="sw busy"></i>' + (boss() ? 'Busy' : 'We’re busy') + '</span><span><i class="sw plan"></i>' + (boss() ? 'Plans with family' : 'Plans with you') + '</span>' +
-      (V.from !== V.today ? '<button class="link small" data-go="today">Back to today</button>' : '') + '</div>';
+    h += '<div class="vt">' + (V.from !== V.today ? '<button class="link small" data-go="today">Back to today</button>' : '') +
+      '<button class="small" data-view="week" aria-pressed="' + (VIEW === 'week') + '">Week</button><button class="small" data-view="list" aria-pressed="' + (VIEW === 'list') + '">List</button></div>';
+    if (VIEW === 'list') {
+      h += '<div class="strip">' + V.days.map(tile).join('') + '</div>';
+      h += '<div class="legend"><span><i class="sw free"></i>Free</span><span><i class="sw busy"></i>' + (boss() ? 'Busy' : 'We’re busy') + '</span><span><i class="sw plan"></i>' + (boss() ? 'Plans with family' : 'Plans with you') + '</span></div>';
+    }
     if (V.canJump) h += '<div class="jump"><label for="jump">Jump to a date</label><input type="date" id="jump" data-jump min="' + addDays(V.today, -28) + '" max="' + esc(V.lastDay) + '" value="' + V.from + '"></div>';
-    V.days.forEach(d => { h += dayCard(d); });
+    if (VIEW === 'week') h += weekLegend() + weekGrid();
+    else V.days.forEach(d => { h += dayCard(d); });
     if (V.ideas) h = '<div class="layout"><div class="cal">' + h + '</div><aside class="side">' + ideasPanel() + '</aside></div>';
     $('#main').innerHTML = h;
   }
+
+  // ---------- week grid: a column per day, hour by hour, one colour per person ----------
+  let VIEW = 'week';
+  try { VIEW = localStorage.getItem('famcal_view') || 'week'; } catch (e) { /* default */ }
+  const COL = { charlotte: '#7b4fb8', tom: '#2f73c4', sam: '#c9860c', nixon: '#b8562a', tomsmum: '#2e8f5b', mumdad: '#c7407e', busy: '#9a948a', other: '#5f7f8c' };
+  const colOf = id => COL[id] || COL.other;
+  const idOfName = n => { const p = V.people.find(x => x.name === n); return p ? p.id : /^(Nanay|Tatay)$/.test(n) ? 'mumdad' : ''; };
+  // a family plan takes the colour of the family member in it; just us is Charlotte's colour
+  const planCol = p => boss() ? colOf((p.people || []).find(id => id !== 'charlotte' && id !== 'tom') || 'charlotte') : colOf('charlotte');
+  function weekLegend() {
+    const keys = boss() ? [['charlotte', 'Charlotte (solid = work, pale = social)'], ['tom', 'Tom (stripe = at work)'], ['sam', V.child], ['nixon', V.dog]]
+        .concat(V.people.filter(p => !p.place && p.id !== 'tom').map(p => [p.id, p.name]))
+      : [['busy', V.us + ' busy'], ['charlotte', 'Plans with us'], [V.me.id, 'Your own plans'], ['sam', V.child], ['nixon', V.dog]];
+    return '<div class="legend wk-legend">' + keys.map(k => '<span><i style="--c:' + colOf(k[0]) + '"></i>' + esc(k[1]) + '</span>').join('') + '</div>';
+  }
+  function gridItems(d) {
+    const it = [], all = [], bars = [];
+    const add =(s, e, label, col, o) => { o = o || {}; const x = { s: s, e: e, label: label, col: col, soft: !!o.soft, attrs: o.attrs || '' }; (o.allDay || (s <= 0 && e >= 1440) ? all : it).push(x); };
+    if (d.bankHoliday) add(0, 1440, '🏖️ Bank holiday', COL.busy, { soft: true });
+    (d.birthdays || []).forEach(b => add(0, 1440, (b.kind === 'anniversary' ? '💐 ' : '🎂 ') + b.name, COL.other, { soft: true }));
+    if (boss()) {
+      d.busy.forEach(b => {
+        if (b.n) return;
+        if (b.w) return bars.push({ s: b.s, e: b.e, label: b.t, col: colOf(b.who) });   // usual work hours: a slim stripe, like Google's working hours
+        add(b.s, b.e, (b.c === 'work' ? 'Work: ' : b.c === 'social' ? 'Social: ' : '') + (b.t || 'Busy'), colOf('charlotte'), { soft: b.c !== 'work' });
+      });
+      (d.work || []).forEach(w => add(0, 1440, '🌴 ' + w.label, colOf(w.who), { soft: true }));
+      (d.others || []).forEach(o => {
+        const c = colOf(o.id || idOfName(o.name));
+        if (o.notFree) add(0, 1440, o.name + ' not free', c);
+        o.busy.forEach(b => add(b.s, b.e, o.name + ' busy', c, { soft: true }));
+      });
+    } else {
+      // our busy time is grey shading behind the day, so their own plans sit on top at full width
+      d.busy.forEach(b => (b.s <= 0 && b.e >= 1440 ? add(0, 1440, V.us + ' busy', COL.busy, { soft: true }) : bars.push({ s: b.s, e: b.e, label: V.us + ' busy', col: COL.busy, bg: true })));
+      (d.own || []).forEach(o => add(o.start ? o.s : 0, o.start ? o.e : 1440, (o.who && o.who !== 'both' ? o.who + ': ' : '') + o.title, colOf(V.me.id),
+        { attrs: d.past ? '' : 'data-own="' + esc(o.id) + '"', allDay: !o.start }));
+    }
+    d.plans.forEach(p => add(p.start ? p.s : 0, p.start ? p.e : 1440, '📅 ' + p.title, planCol(p), { attrs: p.canEdit && !d.past ? 'data-move="' + esc(p.id) + '"' : '', allDay: !p.start }));
+    ['sam', 'nixon'].forEach(k => d[k].forEach(c => add(c.start ? c.s : 0, c.start ? c.e : 1440,
+      (k === 'sam' ? '🧒 ' + V.child : '🐶 ' + V.dog) + (c.mine ? ' with you' : (c.person === 'other' ? ' at ' : ' with ') + c.name), COL[k], { allDay: !c.start })));
+    return { it: it, all: all, bars: bars };
+  }
+  // side-by-side columns where events overlap, like Google Calendar
+  function laneOut(items) {
+    items.sort((a, b) => a.s - b.s || b.e - a.e);
+    let group = [], end = -1;
+    const flush = () => { const ends = []; group.forEach(x => { let i = ends.findIndex(v => v <= x.s); if (i < 0) { i = ends.length; ends.push(0); } ends[i] = x.e; x.lane = i; }); group.forEach(x => { x.n = ends.length; }); group = []; };
+    items.forEach(x => { if (group.length && x.s >= end) { flush(); end = -1; } group.push(x); end = Math.max(end, x.e); });
+    if (group.length) flush();
+    return items;
+  }
+  function weekGrid() {
+    const PX = 44, data = V.days.map(gridItems), nowM = (() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); })();
+    let H0 = Math.floor(V.dayStart / 60), H1 = Math.ceil(V.dayEnd / 60);
+    data.forEach(x => x.it.forEach(e => { H0 = Math.min(H0, Math.floor(e.s / 60)); H1 = Math.max(H1, Math.ceil(e.e / 60)); }));
+    H0 = Math.max(0, H0); H1 = Math.min(24, H1);
+    const top = m => (Math.max(m, H0 * 60) - H0 * 60) * PX / 60;
+    const chip = x => '<button class="chip-ev' + (x.soft ? ' soft' : '') + '" ' + x.attrs + ' style="--c:' + x.col + '" title="' + esc(x.label) + '">' + esc(x.label) + '</button>';
+    let h = '<div class="wk-wrap"><div class="wk"><div class="wk-row wk-head"><div class="wk-gut"></div>' + V.days.map(d => {
+      const p = dParts(d.date);
+      return '<button class="wk-dh' + (d.date === V.today ? ' today' : '') + '" data-dayopen="' + d.date + '" title="Open ' + esc(d.label) + '"><span>' + p.wd + '</span><b>' + p.num + '</b></button>';
+    }).join('') + '</div>';
+    h += '<div class="wk-row wk-all"><div class="wk-gut">All day</div>' + data.map(x => '<div class="cell">' + x.all.map(chip).join('') + '</div>').join('') + '</div>';
+    h += '<div class="wk-body" style="height:' + (H1 - H0) * PX + 'px"><div class="wk-gut wk-hours">';
+    for (let hr = H0 + 1; hr < H1; hr++) h += '<span style="top:' + (hr - H0) * PX + 'px">' + nice(hr * 60) + '</span>';
+    h += '</div>' + V.days.map((d, i) => {
+      let c = '<div class="wk-col' + (d.past ? ' past' : '') + '" data-slot="' + d.date + '" data-h0="' + H0 + '" style="background-size:100% ' + PX + 'px">';
+      if (d.date === V.today && nowM >= H0 * 60 && nowM <= H1 * 60) c += '<div class="now" style="top:' + top(nowM) + 'px"></div>';
+      data[i].bars.forEach(b => { c += '<div class="' + (b.bg ? 'bgbusy' : 'wbar') + '" title="' + esc(b.label + ', ' + range(b.s, b.e)) + '" style="--c:' + b.col + ';top:' + top(b.s) + 'px;height:' + (top(Math.min(b.e, H1 * 60)) - top(b.s)) + 'px"></div>'; });
+      laneOut(data[i].it).forEach(x => {
+        const y = top(x.s), ht = Math.max(top(Math.min(x.e, H1 * 60)) - y, 18);
+        c += '<button class="ev' + (x.soft ? ' soft' : '') + '" ' + x.attrs + ' title="' + esc(x.label + ', ' + range(x.s, x.e)) + '" style="--c:' + x.col + ';top:' + y + 'px;height:' + ht + 'px;left:calc(6px + ' + x.lane + ' * (100% - 6px) / ' + x.n + ');width:calc((100% - 6px) / ' + x.n + ' - 2px)">' +
+          '<span class="ev-t">' + esc(x.label) + '</span>' + (ht >= 30 ? '<span class="ev-w">' + range(x.s, x.e) + '</span>' : '') + '</button>';
+      });
+      return c + '</div>';
+    }).join('') + '</div></div></div>';
+    return h + '<p class="sub wk-tip">' + (boss() ? 'Tap a day’s name for its full card (Sam, ' + esc(V.dog) + ', leave). Tap an empty slot to add a plan.' : 'Tap an empty slot to add something. Tap a day’s name for the full day.') + '</p>';
+  }
+  // Family: a plan of their own. Only they see what it is; Charlotte and Tom just see that they're busy.
+  function ownDialog(o, date, start) {
+    const editing = !!o, names = V.me.id === 'mumdad' ? ['Nanay', 'Tatay'] : null;
+    o = o || { title: '', notes: '', start: start || '', end: start ? hhmm(Math.min(toMins(start) + 60, 1439)) : '', who: '' };
+    openDialog('<h3>' + (editing ? 'Change your plan' : 'Add your own plan') + '</h3><p class="sub">Only you see what this is. Charlotte and Tom just see that you’re busy.</p>' +
+      '<label>What is it?</label><input type="text" name="title" maxlength="80" required value="' + esc(o.title) + '" placeholder="e.g. Doctor’s appointment">' +
+      (names ? '<label>Whose is it?</label><select name="who">' + names.concat(['both']).map(n => '<option value="' + n + '"' + (o.who === n ? ' selected' : '') + '>' + (n === 'both' ? 'Both of us' : n) + '</option>').join('') + '</select>' : '') +
+      '<label>Day</label><input type="date" name="date" required min="' + V.today + '" value="' + esc(editing ? o.date : date) + '">' +
+      timeFields({ allDay: editing && !o.start, start: o.start, end: o.end }) +
+      '<label>Notes <span class="sub">(optional)</span></label><textarea name="notes" maxlength="300">' + esc(o.notes) + '</textarea>' +
+      '<div class="dlgacts">' + (editing ? '<button type="button" class="link danger" data-delown="' + esc(o.id) + '">Delete</button>' : '') + '<button type="button" data-close>Back</button><button class="primary" type="submit">' + (editing ? 'Save' : 'Add it') + '</button></div>',
+      async fd => { await api('saveOwnPlan', KEY, { id: editing ? o.id : '', title: fd.get('title'), who: fd.get('who') || '', date: fd.get('date'), allDay: !!fd.get('allDay'), start: fd.get('start'), end: fd.get('end'), notes: fd.get('notes') }); return 'Saved. It’s on your own calendar too.'; });
+    wireAllDay();
+    const del = form.querySelector('[data-delown]');
+    if (del) del.onclick = async () => { del.disabled = true; try { await api('deleteOwnPlan', KEY, o.id); dlg.close(); toast('Deleted.'); await load(FROM); } catch (e) { toast(e.message); del.disabled = false; } };
+  }
+  // Tapping an empty hour: family choose their own plan or one with us; Charlotte and Tom add a plan
+  function slotDialog(date, start) {
+    if (boss()) return planDialog(date, null, start);
+    openDialog('<h3>' + esc(V.days.find(d => d.date === date).label) + ', ' + esc(nice(start)) + '</h3>' +
+      '<div class="row" style="flex-direction:column;align-items:stretch;gap:8px"><button type="button" class="primary" data-pick="own">Add my own plan</button><button type="button" data-pick="us">Plan something with ' + esc(V.us) + '</button></div>' +
+      '<div class="dlgacts"><button type="button" data-close>Back</button></div>', async () => '');
+    form.querySelector('[data-pick=own]').onclick = () => { dlg.close(); ownDialog(null, date, start); };
+    form.querySelector('[data-pick=us]').onclick = () => { dlg.close(); planDialog(date, null, start); };
+  }
+  document.addEventListener('click', ev => {
+    const col = ev.target.closest('.wk-col');
+    if (!col || ev.target.closest('.ev') || col.classList.contains('past')) return;
+    const r = col.getBoundingClientRect(), m = Math.floor((ev.clientY - r.top) * 60 / 44 / 30) * 30 + (+col.dataset.h0) * 60;
+    slotDialog(col.dataset.slot, hhmm(Math.min(m, 23 * 60)));
+  });
 
   // ---------- Charlotte's things-to-do side panel ----------
   const dogTxt = d => d === 'yes' ? '<span class="chip ok">🐶 Dog friendly</span>' : d === 'no' ? '<span class="chip no">No dogs</span>' : '<span class="chip">Dogs: not sure</span>';
@@ -553,13 +691,15 @@
         (p.comments ? '<div class="comments">' + p.comments.map(c => '<div><strong>' + esc(c.who) + ':</strong> ' + esc(c.text) + '</div>').join('') +
           (!d.past ? '<form class="cform" data-cplan="' + esc(p.id) + '"><input type="text" name="c" maxlength="300" placeholder="Add a note for everyone going…"><button class="small">Add</button></form>' : '') + '</div>' : ''), acts);
     });
+    (d.own || []).forEach(o => { h += line('🗓', 'plan', '<strong>' + esc((o.who && o.who !== 'both' ? o.who + ': ' : '') + o.title) + '</strong> <span class="when">· ' + esc(o.start ? range(o.s, o.e) : 'All day') + '</span><div class="sub">Your own plan · only you see what it is</div>',
+      d.past ? '' : '<button class="link small" data-own="' + esc(o.id) + '">Change</button>'); });
     h += careLine('sam', d) + careLine('nixon', d);
     if (boss()) {
       const work = d.busy.filter(b => b.w), other = d.busy.filter(b => !b.w && !b.n), notes = d.busy.filter(b => b.n);
       if (work.length) h += line('💼', 'busy', '<span class="sub">' + work.map(b => esc(b.t) + ' ' + range(b.s, b.e)).join(' · ') + '</span>', '');
       (d.work || []).forEach(w => { h += line('🌴', 'busy', '<span class="sub">' + esc(w.label) + '</span>', ''); });
       const whenB = b => b.s <= 0 && b.e >= 1440 ? 'all day' : range(b.s, b.e);
-      other.forEach(b => { h += line('•', 'busy', '<span class="sub">' + esc(b.t || 'Busy') + ' <span class="when">· ' + esc(whenB(b)) + '</span></span>',
+      other.forEach(b => { h += line(b.c === 'work' ? '💼' : b.c === 'social' ? '🥂' : '•', 'busy', '<span class="sub">' + (b.c ? '<strong>' + (b.c === 'work' ? 'Work' : 'Social') + ':</strong> ' : '') + esc(b.t || 'Busy') + ' <span class="when">· ' + esc(whenB(b)) + '</span></span>',
         b.id && !d.past ? '<button class="link small" data-share="' + esc(b.id) + '" data-title="' + esc(b.t) + '">Share with family</button>' : ''); });
       notes.forEach(b => { h += line('🗒', 'busy', '<span class="sub">' + esc(b.t) + ' <span class="when">· ' + esc(whenB(b)) + ', note only (not busy)</span></span>', ''); });
       if (!d.past) (d.others || []).forEach(o => {
@@ -572,6 +712,7 @@
     h += '</div>';
     if (!d.past || boss()) {
       h += '<div class="dayacts"><button data-plan="' + d.date + '">＋ ' + (boss() ? 'Plan' : 'Plan something with us') + '</button>' +
+        (boss() || d.past ? '' : '<button data-addown="' + d.date + '">🗓 Add my own plan</button>') +
         // only offered when he isn't already with someone for the whole day
         (d.sam.some(c => !c.start) ? '' : '<button data-have="sam|' + d.date + '">🧒 ' + (boss() ? 'Who has ' + esc(V.child) : 'I’ll have ' + esc(V.child)) + '</button>') +
         (d.nixon.some(c => !c.start) ? '' : '<button data-have="nixon|' + d.date + '">🐶 ' + (boss() ? esc(V.dog) + '’s not with us' : 'I’ll have ' + esc(V.dog)) + '</button>') +
@@ -613,9 +754,9 @@
     return '<label>Who’s it with?</label>' + V.people.filter(p => !p.place).map(p => '<label class="check" style="margin-top:4px"><input type="checkbox" name="people" value="' + esc(p.id) + '" ' + (selected.indexOf(p.id) !== -1 ? 'checked' : '') + '> ' + esc(p.name) + '</label>').join('');
   }
 
-  function planDialog(date, p) {
+  function planDialog(date, p, start) {
     const editing = !!p;
-    const o = p || { title: '', place: '', notes: '', start: '', end: '', people: [] };
+    const o = p || { title: '', place: '', notes: '', start: start || '', end: start ? hhmm(Math.min(toMins(start) + 60, 1439)) : '', people: [] };
     openDialog('<h3>' + (editing ? 'Change this plan' : boss() ? 'Add a plan' : 'Plan something with us') + '</h3>' +
       '<label>What is it?</label><input type="text" name="title" maxlength="80" required value="' + esc(o.title) + '" placeholder="e.g. Sunday lunch">' +
       '<label>Day</label><input type="date" name="date" required value="' + esc(editing ? p.date : date) + '" min="' + (boss() ? '' : V.today) + '">' +
@@ -720,6 +861,10 @@
     if (ds.copy) { try { await navigator.clipboard.writeText(ds.copy); toast('Copied.'); } catch (e) { prompt('Copy this:', ds.copy); } return; }
     const findPlan = id => { for (const d of V.days) { const p = d.plans.find(x => x.id === id); if (p) return p; } return null; };
     if (ds.plan) return planDialog(ds.plan, null);
+    if (ds.view) { VIEW = ds.view; try { localStorage.setItem('famcal_view', VIEW); } catch (e) { } render(); return; }
+    if (ds.dayopen) { VIEW = 'list'; try { localStorage.setItem('famcal_view', VIEW); } catch (e) { } render(); const c = document.getElementById('d-' + ds.dayopen); if (c) c.scrollIntoView({ behavior: 'smooth' }); return; }
+    if (ds.own) return ownDialog((V.days.flatMap(d => d.own || [])).find(o => o.id === ds.own), null);
+    if (ds.addown) return ownDialog(null, ds.addown, '');
     if (ds.move) return planDialog(null, findPlan(ds.move));
     if (ds.addcal) return addCalDialog(findPlan(ds.addcal));
     if (ds.cancel) {
