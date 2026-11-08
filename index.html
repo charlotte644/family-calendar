@@ -326,7 +326,7 @@
     const later = V.from > addDays(V.today, 6);   // she has jumped ahead to another week
     return '<section class="weekcard"><h2>' + (later ? esc(weekTitle(V.from, V.to)) : 'Your week') + '</h2>' + (mine.length ? '<ul>' + mine.join('') + '</ul>' : '<p>Nothing booked with us ' + (later ? 'that' : 'this') + ' week.</p>') + asked +
       '<div class="row"><button class="primary" data-addplan="1">＋ Add a plan</button><button data-card="sam">🧒 ' + esc(V.child) + '’s care card</button><button data-card="nixon">🐶 ' + esc(V.dog) + '’s care card</button>' +
-      '<button data-need="1">🛍️ We need more…</button><button data-instr="1">ℹ️ Instructions</button></div></section>';
+      '<button data-need="1">🛍️ We need more…</button>' + (V.leaveFor ? '<button data-annual="1">🌴 Annual leave</button>' : '') + '<button data-instr="1">ℹ️ Instructions</button></div></section>';
   }
   // Charlotte and Tom: what carers have asked us to bring
   function needsPanel() {
@@ -472,6 +472,7 @@
       (d.others || []).forEach(o => {
         const id = o.id || idOfName(o.name), c = colOf(id);
         if (o.notFree) add(0, 1440, o.name + ' not free', c, { k: id });
+        if (o.leave) add(0, 1440, '🌴 ' + o.name + ' on annual leave', c, { k: id, soft: true });
         o.busy.forEach(b => add(b.s, b.e, o.name + ' busy', c, { soft: true, k: id }));
         (o.shift || []).forEach(b => add(b.s, b.e, o.name + ' ' + (b.l || o.shiftLabel), c, { k: id, fit: true }));   // fit: never stretches the grid's hours
       });
@@ -479,11 +480,11 @@
       // our busy time is grey shading behind the day, so their own plans sit on top at full width
       d.busy.forEach(b => (b.s <= 0 && b.e >= 1440 ? add(0, 1440, V.us + ' busy', COL.busy, { soft: true, k: 'us' }) : bar({ s: b.s, e: b.e, label: V.us + ' busy', col: COL.busy, bg: true, k: 'us' })));
       (d.myShifts || []).forEach(b => add(b.s, b.e, b.who + ' ' + b.l, colOf(V.me.id), { k: 'own', fit: true }));   // their own usual work
-      (d.own || []).forEach(o => add(o.start ? o.s : 0, o.start ? o.e : 1440, (o.who && o.who !== 'both' ? o.who + ': ' : '') + o.title, colOf(V.me.id),
-        { attrs: d.past ? '' : 'data-own="' + esc(o.id) + '"', allDay: !o.start, k: 'own' }));
+      (d.own || []).forEach(o => add(o.start ? o.s : 0, o.start ? o.e : 1440, (o.leave ? '🌴 ' : '') + (o.who && o.who !== 'both' ? o.who + ': ' : '') + o.title, colOf(V.me.id),
+        { attrs: d.past ? '' : (o.leave ? 'data-unleave="' : 'data-own="') + esc(o.id) + '"', allDay: !o.start, k: 'own', soft: o.leave }));
     }
     d.plans.forEach(p => add(p.start ? p.s : 0, p.start ? p.e : 1440, '📅 ' + p.title, planCol(p),
-      { attrs: p.canEdit && !d.past ? 'data-move="' + esc(p.id) + '"' : '', allDay: !p.start, k: 'plans', ks: (p.people || []).concat(['charlotte', 'tom']) }));
+      { attrs: p.canEdit && !d.past ? 'data-move="' + esc(p.id) + '"' : '', allDay: !p.start, k: 'plans', ks: (p.people || []).concat(['charlotte', 'tom']), fit: p.start === '00:00' || p.end === '23:59' }));   // fit: first/last day of a several-day plan
     ['sam', 'nixon'].forEach(k => d[k].forEach(c => add(c.start ? c.s : 0, c.start ? c.e : 1440,
       (k === 'sam' ? '🧒 ' + V.child : '🐶 ' + V.dog) + (c.mine ? ' with you' : (c.person === 'other' ? ' at ' : ' with ') + c.name), COL[k], { allDay: !c.start, k: k, ks: [c.person] })));
     return { it: it, all: all, bars: bars };
@@ -532,12 +533,12 @@
     openDialog('<h3>' + (editing ? 'Change your plan' : 'Add your own plan') + '</h3><p class="sub">Only you see what this is. Charlotte and Tom just see that you’re busy.</p>' +
       '<label>What is it?</label><input type="text" name="title" maxlength="80" required value="' + esc(o.title) + '" placeholder="e.g. Doctor’s appointment">' +
       (names ? '<label>Whose is it?</label><select name="who">' + names.concat(['both']).map(n => '<option value="' + n + '"' + (o.who === n ? ' selected' : '') + '>' + (n === 'both' ? 'Both of us' : n) + '</option>').join('') + '</select>' : '') +
-      '<label>Day</label><input type="date" name="date" required min="' + V.today + '" value="' + esc(editing ? o.date : date) + '">' +
+      '<label>Day</label><input type="date" name="date" required min="' + V.today + '" value="' + esc(editing ? o.date : date) + '">' + (editing ? '' : lastDayField()) +
       timeFields({ allDay: editing && !o.start, start: o.start, end: o.end }) + (editing ? '' : repeatFields()) +
       '<label>Notes <span class="sub">(optional)</span></label><textarea name="notes" maxlength="300">' + esc(o.notes) + '</textarea>' +
       '<div class="dlgacts">' + (editing ? '<button type="button" class="link danger" data-delown="' + esc(o.id) + '">' + (o.repeats ? 'Delete all dates' : 'Delete') + '</button>' : '') + '<button type="button" data-close>Back</button><button class="primary" type="submit">' + (editing ? 'Save' : 'Add it') + '</button></div>',
       async fd => {
-        const r = await api('saveOwnPlan', KEY, { id: editing ? o.id : '', title: fd.get('title'), who: fd.get('who') || '', date: fd.get('date'), allDay: !!fd.get('allDay'), start: fd.get('start'), end: fd.get('end'), notes: fd.get('notes'), repeat: fd.get('repeat') || '', until: fd.get('until') || '' });
+        const r = await askFirst(f => api('saveOwnPlan', KEY, { force: f, id: editing ? o.id : '', title: fd.get('title'), who: fd.get('who') || '', date: fd.get('date'), endDate: fd.get('endDate') || '', allDay: !!fd.get('allDay'), start: fd.get('start'), end: fd.get('end'), notes: fd.get('notes'), repeat: fd.get('repeat') || '', until: fd.get('until') || '' }));
         return 'Saved.' + repeatMsg(r) + ' It’s on your own calendar too.';
       });
     wireAllDay();
@@ -772,8 +773,8 @@
           (!d.past ? '<form class="cform" data-cplan="' + esc(p.id) + '"><input type="text" name="c" maxlength="300" placeholder="Add a note for everyone going…"><button class="small">Add</button></form>' : '') + '</div>' : ''), acts);
     });
     (d.myShifts || []).forEach(b => { h += line('💼', 'plan', '<strong>' + esc(b.who + ' ' + b.l) + '</strong> <span class="when">· ' + esc(range(b.s, b.e)) + '</span><div class="sub">Your usual work · Charlotte and Tom just see busy</div>', ''); });
-    (d.own || []).forEach(o => { h += line('🗓', 'plan', '<strong>' + esc((o.who && o.who !== 'both' ? o.who + ': ' : '') + o.title) + '</strong> <span class="when">· ' + esc(o.start ? range(o.s, o.e) : 'All day') + '</span><div class="sub">Your own plan · only you see what it is</div>',
-      d.past ? '' : '<button class="link small" data-own="' + esc(o.id) + '">Change</button>'); });
+    (d.own || []).forEach(o => { h += line(o.leave ? '🌴' : '🗓', 'plan', '<strong>' + esc((o.who && o.who !== 'both' ? o.who + ': ' : '') + o.title) + '</strong> <span class="when">· ' + esc(o.start ? range(o.s, o.e) : 'All day') + '</span><div class="sub">' + (o.leave ? 'Your usual work is off this day' : 'Your own plan · only you see what it is') + '</div>',
+      d.past ? '' : o.leave ? '<button class="link small danger" data-unleave="' + esc(o.id) + '">Remove</button>' : '<button class="link small" data-own="' + esc(o.id) + '">Change</button>'); });
     h += careLine('sam', d) + careLine('nixon', d);
     if (boss()) {
       const work = d.busy.filter(b => b.w), other = d.busy.filter(b => !b.w && !b.n), notes = d.busy.filter(b => b.n);
@@ -788,6 +789,7 @@
         const parts = [], sh = o.shift || [];
         if (sh.length) parts.push(sh.map(b => esc(b.l || o.shiftLabel) + ' ' + esc(whenB(b))).join(', '));
         if (o.busy.length) parts.push('busy ' + o.busy.map(b => esc(whenB(b))).join(', '));
+        if (o.leave) parts.unshift('on annual leave');
         if (o.notLinked) parts.push('calendar not linked yet'); else if (o.unread) parts.push('can’t read their calendar right now');
         const cal = parts.length ? parts.join(' · ') : 'free all day';
         const shown = o.notFree ? '<strong>not free</strong> (marked by ' + esc(o.notFree) + ')' + (parts.length ? ' · ' + cal : '') : cal;
@@ -833,8 +835,30 @@
     const rp = form.querySelector('[name=repeat]'), un = form.querySelector('[data-until]'), di = form.querySelector('[name=date]');
     if (rp && un) rp.onchange = () => { un.hidden = !rp.value; const u = un.querySelector('input'); if (rp.value && !u.value && di.value) u.value = addDays(di.value, 91); };
   }
+  // A plan over several days (e.g. a weekend away): start time on the first day, end time on the last
+  const lastDayField = () => '<label>Last day <span class="sub">(only if it runs over more than one day)</span></label><input type="date" name="endDate">';
   const repeatFields = () => '<label>Repeat</label><select name="repeat"><option value="">Does not repeat</option><option value="week">Every week</option><option value="2weeks">Every 2 weeks</option><option value="month">Every month</option></select>' +
     '<div data-until hidden><label>Until</label><input type="date" name="until"></div>';
+  // Clashes: the script answers "CONFIRM:<who is busy>" first; on yes, the plan is sent again with force
+  async function askFirst(call) {
+    try { return await call(false); }
+    catch (e) {
+      if (!/^CONFIRM:/.test(e.message)) throw e;
+      if (!window.confirm(e.message.slice(8) + '\n\nAre you sure you want to add it anyway?')) throw new Error('Not added. Pick another time, or save again and choose OK to add it anyway.');
+      return await call(true);
+    }
+  }
+  // Nanay & Tatay: annual leave, so their usual work doesn't show those days
+  function leaveDialog() {
+    const names = V.leaveFor || [], d0 = VIEW === 'day' ? DAY : V.today;
+    openDialog('<h3>🌴 Annual leave</h3><p class="sub">Your usual work won’t show on these days.</p>' +
+      (names.length > 1 ? '<label>Who’s off?</label><select name="who">' + names.concat(['both']).map(n => '<option value="' + n + '">' + (n === 'both' ? 'Both of us' : n) + '</option>').join('') + '</select>' : '') +
+      '<div class="two"><div><label>First day off</label><input type="date" name="from" required value="' + d0 + '"></div><div><label>Last day off</label><input type="date" name="to" required value="' + d0 + '"></div></div>' +
+      '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">Save</button></div>',
+      async fd => { await api('saveLeave', KEY, { who: fd.get('who') || '', from: fd.get('from'), to: fd.get('to') }); return 'Saved. Enjoy your time off!'; });
+    const f = form.querySelector('[name=from]'), t = form.querySelector('[name=to]');
+    f.onchange = () => { if (!t.value || t.value < f.value) t.value = f.value; };
+  }
   const repeatMsg = r => r && r.count > 1 ? ' Added for ' + r.count + ' dates.' + (r.skipped && r.skipped.length ? ' Skipped ' + r.skipped.join(', ') + ' as we already have something on.' : '') : '';
   function freeHint(date) {
     const d = V.days.find(x => x.date === date);
@@ -858,16 +882,16 @@
       '<label>What is it?</label><input type="text" name="title" maxlength="80" required value="' + esc(o.title) + '" placeholder="e.g. Sunday lunch">' +
       (boss() ? inviteBoxes(o.people) : '') +
       '<label>Day</label><input type="date" name="date" required value="' + esc(editing ? p.date : date) + '" min="' + (boss() ? '' : V.today) + '">' +
-      (editing || boss() ? '' : freeHint(date)) +
+      (editing ? '' : lastDayField()) + (editing || boss() ? '' : freeHint(date)) +
       timeFields({ allDay: editing && !p.start, start: o.start, end: o.end }) + (editing ? '' : repeatFields()) +
       '<label>Where? <span class="sub">(optional)</span></label><input type="text" name="place" maxlength="120" value="' + esc(o.place) + '" placeholder="e.g. our house, or a pub name">' +
       '<label>Anything else? <span class="sub">(optional)</span></label><textarea name="notes" maxlength="500">' + esc(o.notes) + '</textarea>' +
       '<div class="dlgacts"><button type="button" data-close>Back</button><button class="primary" type="submit">' + (editing ? 'Save changes' : 'Add it') + '</button></div>',
       async fd => {
-        const data = { title: fd.get('title'), date: fd.get('date'), allDay: !!fd.get('allDay'), start: fd.get('start'), end: fd.get('end'), place: fd.get('place'), notes: fd.get('notes'), repeat: fd.get('repeat') || '', until: fd.get('until') || '' };
+        const data = { title: fd.get('title'), date: fd.get('date'), endDate: fd.get('endDate') || '', allDay: !!fd.get('allDay'), start: fd.get('start'), end: fd.get('end'), place: fd.get('place'), notes: fd.get('notes'), repeat: fd.get('repeat') || '', until: fd.get('until') || '' };
         if (boss()) data.people = fd.getAll('people');
-        if (editing) { await api('movePlan', KEY, p.id, data); return 'Changed. ' + (V.me.role === 'admin' ? '' : 'We’ll get an email to say so.'); }
-        const r = await api('addPlan', KEY, data); return 'Added.' + repeatMsg(r) + (V.me.role === 'admin' ? '' : ' We’ll get an email to say so.');
+        if (editing) { await askFirst(f => api('movePlan', KEY, p.id, Object.assign({ force: f }, data))); return 'Changed. ' + (V.me.role === 'admin' ? '' : 'We’ll get an email to say so.'); }
+        const r = await askFirst(f => api('addPlan', KEY, Object.assign({ force: f }, data))); return 'Added.' + repeatMsg(r) + (V.me.role === 'admin' ? '' : ' We’ll get an email to say so.');
       });
     wireAllDay();
     const di = form.querySelector('[name=date]'), hint = () => { const h = form.querySelector('[data-hint]'); if (h) h.outerHTML = freeHint(di.value) || '<div data-hint></div>'; };
@@ -965,6 +989,12 @@
     if (ds.addplan) return addPlanDialog();
     if (ds.instr) return instructionsDialog();
     if (ds.own) return ownDialog((V.days.flatMap(d => d.own || [])).find(o => o.id === ds.own), null);
+    if (ds.annual) return leaveDialog();
+    if (ds.unleave) {
+      const o = V.days.flatMap(d => d.own || []).find(x => x.id === ds.unleave);
+      return confirmDialog('Remove this annual leave?', '<strong>' + esc((o.who && o.who !== 'both' ? o.who + ': ' : '') + 'Annual leave') + '</strong>' + (o.repeats ? '<br><span class="sub">This day and the rest of this leave will be removed.</span>' : ''), { text: 'Yes, remove it' },
+        async () => { await api('deleteOwnPlan', KEY, o.id); return 'Removed.'; });
+    }
     if (ds.addown) return ownDialog(null, ds.addown, '');
     if (ds.move) return planDialog(null, findPlan(ds.move));
     if (ds.addcal) return addCalDialog(findPlan(ds.addcal));
